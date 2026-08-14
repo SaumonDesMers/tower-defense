@@ -2,29 +2,30 @@
 
 use std::time::Duration;
 
-use bevy::{log::LogPlugin, prelude::*};
 use avian2d::prelude::*;
+use bevy::{log::LogPlugin, prelude::*};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 mod camera;
-mod ui;
 mod scenes;
+mod ui;
 
+use scenes::{SceneState, ScenesPlugin};
 use ui::UIPlugin;
-use scenes::{ScenesPlugin, SceneState};
 
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins.set(AssetPlugin {
-                watch_for_changes_override: Some(true),
-                ..default()
-            })
-            .set(LogPlugin {
-                level: bevy::log::Level::INFO,
-                ..default()
-            }),
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes_override: Some(true),
+                    ..default()
+                })
+                .set(LogPlugin {
+                    level: bevy::log::Level::INFO,
+                    ..default()
+                }),
             PhysicsPlugins::default(),
             PhysicsPickingPlugin,
             camera::CameraPlugin,
@@ -55,7 +56,7 @@ struct RessourcesHandler {
 }
 
 fn setup(
-    mut commands: Commands,
+    mut _commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut ressources_handler: ResMut<RessourcesHandler>,

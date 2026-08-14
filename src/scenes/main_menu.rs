@@ -1,9 +1,9 @@
+use bevy::color::palettes::tailwind;
+use bevy::input_focus::InputFocus;
 use bevy::log::tracing_subscriber::field::debug;
 use bevy::prelude::*;
-use bevy::input_focus::InputFocus;
-use bevy::color::palettes::tailwind;
 use bevy::ui::prelude::*;
-use bevy::ui_widgets::{observe, Activate};
+use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::SceneState;
 
@@ -11,8 +11,7 @@ pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(OnEnter(SceneState::Menu), setup_menu)
+        app.add_systems(OnEnter(SceneState::Menu), setup_menu)
             .add_systems(OnExit(SceneState::Menu), cleanup_menu)
             .add_systems(Update, button_system);
     }
@@ -24,9 +23,7 @@ struct MainMenu;
 #[derive(Component)]
 struct MainMenuButton;
 
-fn setup_menu(
-    mut commands: Commands,
-) {
+fn setup_menu(mut commands: Commands) {
     info!("Setting up main menu...");
     commands.spawn((
         MainMenu,
@@ -44,10 +41,13 @@ fn setup_menu(
         children![
             (
                 button("Start Game"),
-                observe(|_activate: On<Activate>, mut scene_next_state: ResMut<NextState<SceneState>>| {
-                    info!("Start Game button clicked!");
-                    scene_next_state.set(SceneState::Game);
-                })
+                observe(
+                    |_activate: On<Activate>,
+                     mut scene_next_state: ResMut<NextState<SceneState>>| {
+                        info!("Start Game button clicked!");
+                        scene_next_state.set(SceneState::Game);
+                    }
+                )
             ),
             (
                 button("Options"),
@@ -57,18 +57,17 @@ fn setup_menu(
             ),
             (
                 button("Exit"),
-                observe(|_activate: On<Activate>, mut exit: MessageWriter<AppExit>| {
-                    exit.write(AppExit::Success);
-                })
+                observe(
+                    |_activate: On<Activate>, mut exit: MessageWriter<AppExit>| {
+                        exit.write(AppExit::Success);
+                    }
+                )
             )
         ],
     ));
 }
 
-fn cleanup_menu(
-    mut commands: Commands,
-    query: Query<Entity, With<MainMenu>>,
-) {
+fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
     info!("Cleaning up main menu...");
     for entity in &query {
         commands.entity(entity).despawn();
@@ -87,15 +86,10 @@ fn button_system(
             &mut BorderColor,
             &mut Button,
         ),
-        (
-            Changed<Interaction>,
-            With<MainMenuButton>,
-        ),
+        (Changed<Interaction>, With<MainMenuButton>),
     >,
 ) {
-    for (interaction, mut color, mut border_color, mut button) in
-        &mut interaction_query
-    {
+    for (interaction, mut color, mut border_color, mut button) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
@@ -115,9 +109,7 @@ fn button_system(
     }
 }
 
-fn button(
-    text: &str
-) -> impl Bundle {
+fn button(text: &str) -> impl Bundle {
     (
         Button,
         MainMenuButton,
@@ -135,11 +127,6 @@ fn button(
         },
         BackgroundColor::from(tailwind::ORANGE_300),
         BorderColor::all(tailwind::ORANGE_400),
-        children![
-            (
-                Text::new(text),
-                TextColor(tailwind::ORANGE_100.into()),
-            )
-        ]
+        children![(Text::new(text), TextColor(tailwind::ORANGE_100.into()),)],
     )
 }

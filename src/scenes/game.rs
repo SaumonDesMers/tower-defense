@@ -1,100 +1,93 @@
+use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy::ui::prelude::*;
-use avian2d::prelude::*;
 
-mod ui;
+mod base;
+mod buildings;
+mod enemy;
 mod health;
 mod lifetime;
-mod spawner;
-mod enemy;
-mod projectile;
+mod obstacle;
 mod pathfinding;
 mod physic;
-mod buildings;
-mod wave;
+mod projectile;
 mod selection;
+mod spawner;
 mod tower;
-mod obstacle;
-mod base;
+mod ui;
+mod wave;
 
 use crate::scenes::SceneState;
 
-use health::{Health, HealthPlugin, Damage};
-use spawner::{Spawnable, Spawner, SpawnerPlugin};
+use base::{BASE_POSITION, Base, BasePlugin};
+use buildings::{Building, BuildingsPlugin};
 use enemy::{Enemy, EnemyAI, EnemyPlugin};
-use projectile::{ProjectilePlugin, Projectile, ProjectileHitEvent};
-use pathfinding::{PathfindingPlugin};
+use health::{Damage, Health, HealthPlugin};
+use pathfinding::PathfindingPlugin;
 use physic::GameLayer;
-use buildings::{BuildingsPlugin, Building};
+use projectile::{Projectile, ProjectileHitEvent, ProjectilePlugin};
+use selection::{Selectable, SelectionPlugin};
+use spawner::{Spawnable, Spawner, SpawnerPlugin};
+use tower::{Tower, TowerPlugin, tower};
 use wave::WavePlugin;
-use selection::{SelectionPlugin, Selectable};
-use tower::{TowerPlugin, Tower, tower};
-use base::{BasePlugin, Base, BASE_POSITION};
 
 pub struct BattleFieldPlugin;
 
 impl Plugin for BattleFieldPlugin {
-	fn build(&self, app: &mut App) {
-		app
-			.add_plugins((
-				ui::UiPlugin,
-				HealthPlugin,
-				lifetime::LifetimePlugin,
-				SpawnerPlugin,
-				EnemyPlugin,
-				ProjectilePlugin,
-				PathfindingPlugin,
-				BuildingsPlugin,
-				WavePlugin,
-				SelectionPlugin,
-				TowerPlugin,
-				BasePlugin,
-			))
-			.add_systems(OnEnter(SceneState::Game), setup_battlefield)
-			.add_systems(OnExit(SceneState::Game), cleanup_battlefield);
-	}
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            ui::UiPlugin,
+            HealthPlugin,
+            lifetime::LifetimePlugin,
+            SpawnerPlugin,
+            EnemyPlugin,
+            ProjectilePlugin,
+            PathfindingPlugin,
+            BuildingsPlugin,
+            WavePlugin,
+            SelectionPlugin,
+            TowerPlugin,
+            BasePlugin,
+        ))
+        .add_systems(OnEnter(SceneState::Game), setup_battlefield)
+        .add_systems(OnExit(SceneState::Game), cleanup_battlefield);
+    }
 }
 
 #[derive(Component, Clone)]
 pub struct BattleField;
 
 fn setup_battlefield(
-	mut commands: Commands,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<ColorMaterial>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-	info!("Setting up battlefield...");
-	// Background
+    info!("Setting up battlefield...");
+    // Background
     commands.spawn((
-		BattleField,
+        BattleField,
         Transform::from_xyz(0.0, 0.0, -0.1),
         Mesh2d(meshes.add(Rectangle::new(2000.0, 1000.0))),
         MeshMaterial2d(materials.add(Color::srgba(0.5, 0.5, 0.5, 1.0))),
     ));
 
-	// Base
-	commands.spawn((
-		BattleField,
-		Transform::from_translation(BASE_POSITION.extend(1.0)),
-		Mesh2d(meshes.add(Circle::new(10.0))),
-		MeshMaterial2d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
-		Base { life: 5 },
-		Collider::circle(10.0),
-	));
+    // Base
+    commands.spawn((
+        BattleField,
+        Transform::from_translation(BASE_POSITION.extend(1.0)),
+        Mesh2d(meshes.add(Circle::new(10.0))),
+        MeshMaterial2d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
+        Base { life: 5 },
+        Collider::circle(10.0),
+    ));
 
-	// UI
-	commands.spawn((
-		BattleField,
-		ui::ui(),
-	));
+    // UI
+    commands.spawn((BattleField, ui::ui()));
 }
 
-fn cleanup_battlefield(
-	mut commands: Commands,
-	query: Query<Entity, With<BattleField>>,
-) {
-	info!("Cleaning up battlefield...");
-	for entity in query.iter() {
-		commands.entity(entity).despawn();
-	}
+fn cleanup_battlefield(mut commands: Commands, query: Query<Entity, With<BattleField>>) {
+    info!("Cleaning up battlefield...");
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }

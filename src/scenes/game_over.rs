@@ -1,9 +1,9 @@
+use bevy::color::palettes::tailwind;
+use bevy::input_focus::InputFocus;
 use bevy::log::tracing_subscriber::field::debug;
 use bevy::prelude::*;
-use bevy::input_focus::InputFocus;
-use bevy::color::palettes::tailwind;
 use bevy::ui::prelude::*;
-use bevy::ui_widgets::{observe, Activate};
+use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::SceneState;
 
@@ -11,8 +11,7 @@ pub struct GameOverPlugin;
 
 impl Plugin for GameOverPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(OnEnter(SceneState::GameOver), setup)
+        app.add_systems(OnEnter(SceneState::GameOver), setup)
             .add_systems(OnExit(SceneState::GameOver), cleanup)
             .add_systems(Update, button_system);
     }
@@ -24,9 +23,7 @@ struct GameOver;
 #[derive(Component)]
 struct GameOverButton;
 
-fn setup(
-    mut commands: Commands,
-) {
+fn setup(mut commands: Commands) {
     info!("Setting up game over screen...");
     commands.spawn((
         GameOver,
@@ -42,30 +39,33 @@ fn setup(
         },
         BackgroundColor(tailwind::ORANGE_200.into()),
         children![
-			(
-				Text::new("Game Over"),
-				TextColor(tailwind::ORANGE_800.into()),
-			),
-			(
-				button("Restart"),
-				observe(|_activate: On<Activate>, mut scene_next_state: ResMut<NextState<SceneState>>| {
-					scene_next_state.set(SceneState::Game);
-				})
-			),
+            (
+                Text::new("Game Over"),
+                TextColor(tailwind::ORANGE_800.into()),
+            ),
+            (
+                button("Restart"),
+                observe(
+                    |_activate: On<Activate>,
+                     mut scene_next_state: ResMut<NextState<SceneState>>| {
+                        scene_next_state.set(SceneState::Game);
+                    }
+                )
+            ),
             (
                 button("Main menu"),
-                observe(|_activate: On<Activate>, mut scene_next_state: ResMut<NextState<SceneState>>| {
-                    scene_next_state.set(SceneState::Menu);
-                })
+                observe(
+                    |_activate: On<Activate>,
+                     mut scene_next_state: ResMut<NextState<SceneState>>| {
+                        scene_next_state.set(SceneState::Menu);
+                    }
+                )
             ),
         ],
     ));
 }
 
-fn cleanup(
-    mut commands: Commands,
-    query: Query<Entity, With<GameOver>>,
-) {
+fn cleanup(mut commands: Commands, query: Query<Entity, With<GameOver>>) {
     info!("Cleaning up game over screen...");
     for entity in &query {
         commands.entity(entity).despawn();
@@ -84,15 +84,10 @@ fn button_system(
             &mut BorderColor,
             &mut Button,
         ),
-        (
-            Changed<Interaction>,
-            With<GameOverButton>,
-        ),
+        (Changed<Interaction>, With<GameOverButton>),
     >,
 ) {
-    for (interaction, mut color, mut border_color, mut button) in
-        &mut interaction_query
-    {
+    for (interaction, mut color, mut border_color, mut button) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
@@ -112,9 +107,7 @@ fn button_system(
     }
 }
 
-fn button(
-    text: &str
-) -> impl Bundle {
+fn button(text: &str) -> impl Bundle {
     (
         Button,
         GameOverButton,
@@ -132,11 +125,6 @@ fn button(
         },
         BackgroundColor::from(tailwind::ORANGE_300),
         BorderColor::all(tailwind::ORANGE_400),
-        children![
-            (
-                Text::new(text),
-                TextColor(tailwind::ORANGE_100.into()),
-            )
-        ]
+        children![(Text::new(text), TextColor(tailwind::ORANGE_100.into()),)],
     )
 }

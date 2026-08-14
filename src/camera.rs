@@ -16,7 +16,7 @@ fn setup_camera(mut commands: Commands) {
         PanCam {
             grab_buttons: vec![MouseButton::Middle], // which buttons should drag the camera
             move_keys: DirectionKeys::arrows_and_wasd(), // which keys should move the camera
-            speed: 500., // the speed for the keyboard movement
+            speed: 500.,                             // the speed for the keyboard movement
             enabled: true, // when false, controls are disabled. See toggle example.
             zoom_to_cursor: true, // whether to zoom towards the mouse or the center of the screen
             min_scale: 1., // prevent the camera from zooming too far in

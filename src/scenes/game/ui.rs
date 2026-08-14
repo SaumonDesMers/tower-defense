@@ -1,16 +1,16 @@
+use bevy::color::palettes::tailwind;
+use bevy::input_focus::InputFocus;
 use bevy::log::tracing_subscriber::field::debug;
 use bevy::prelude::*;
-use bevy::input_focus::InputFocus;
-use bevy::color::palettes::tailwind;
 use bevy::ui::prelude::*;
-use bevy::ui_widgets::{observe, Activate};
+use bevy::ui_widgets::{Activate, observe};
 
-use crate::scenes::SceneState;
-use crate::RessourcesHandler;
-use super::pathfinding::UpdatePathfindingMapEvent;
-use super::wave::LaunchWaveEvent;
-use super::tower::tower;
 use super::obstacle::obstacle;
+use super::pathfinding::UpdatePathfindingMapEvent;
+use super::tower::tower;
+use super::wave::LaunchWaveEvent;
+use crate::RessourcesHandler;
+use crate::scenes::SceneState;
 
 pub struct UiPlugin;
 
@@ -36,21 +36,32 @@ pub fn ui() -> impl Bundle {
         children![
             (
                 button("Main menu"),
-                observe(|_activate: On<Activate>, mut scene_next_state: ResMut<NextState<SceneState>>| {
-                    scene_next_state.set(SceneState::Menu);
-                })
+                observe(
+                    |_activate: On<Activate>,
+                     mut scene_next_state: ResMut<NextState<SceneState>>| {
+                        scene_next_state.set(SceneState::Menu);
+                    }
+                )
             ),
             (
                 button("Buy tower"),
-                observe(|_activate: On<Activate>, mut commands: Commands, ressources_handler: Res<RessourcesHandler>| {
-                    commands.spawn(tower(&ressources_handler));
-                })
+                observe(
+                    |_activate: On<Activate>,
+                     mut commands: Commands,
+                     ressources_handler: Res<RessourcesHandler>| {
+                        commands.spawn(tower(&ressources_handler));
+                    }
+                )
             ),
             (
                 button("Buy obstacle"),
-                observe(|_activate: On<Activate>, mut commands: Commands, ressources_handler: Res<RessourcesHandler>| {
-                    commands.spawn(obstacle(&ressources_handler));
-                })
+                observe(
+                    |_activate: On<Activate>,
+                     mut commands: Commands,
+                     ressources_handler: Res<RessourcesHandler>| {
+                        commands.spawn(obstacle(&ressources_handler));
+                    }
+                )
             ),
             (
                 button("Next Wave"),
@@ -78,15 +89,12 @@ fn button_system(
         Changed<Interaction>,
     >,
 ) {
-    for (interaction, mut color, mut border_color, mut button) in
-        &mut interaction_query
-    {
+    for (interaction, mut color, mut border_color, mut button) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *color = BackgroundColor::from(PRESSED_BUTTON);
                 *border_color = BorderColor::all(tailwind::RED_400);
                 button.set_changed();
-
             }
             Interaction::Hovered => {
                 *color = BackgroundColor::from(HOVERED_BUTTON);
@@ -101,9 +109,7 @@ fn button_system(
     }
 }
 
-fn button(
-    text: &str
-) -> impl Bundle {
+fn button(text: &str) -> impl Bundle {
     (
         Button,
         Node {
@@ -120,11 +126,6 @@ fn button(
         },
         BackgroundColor::from(NORMAL_BUTTON),
         BorderColor::all(tailwind::ORANGE_400),
-        children![
-            (
-                Text::new(text),
-                TextColor(tailwind::ORANGE_100.into()),
-            )
-        ]
+        children![(Text::new(text), TextColor(tailwind::ORANGE_100.into()),)],
     )
 }

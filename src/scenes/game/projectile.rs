@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use bevy::prelude::*;
 use avian2d::prelude::*;
+use bevy::prelude::*;
 
 pub struct ProjectilePlugin;
 
@@ -56,13 +56,19 @@ fn projectile_system(
                     target_transform.translation.y,
                 )
             } else {
-				if (projectile.target_position - Vec2::new(transform.translation.x, transform.translation.y)).length() < 10.0 {
+                if (projectile.target_position
+                    - Vec2::new(transform.translation.x, transform.translation.y))
+                .length()
+                    < 10.0
+                {
                     commands.entity(entity).despawn();
                 }
                 projectile.target_position
             };
 
-        let direction = (projectile.target_position - Vec2::new(transform.translation.x, transform.translation.y)).normalize_or_zero();
+        let direction = (projectile.target_position
+            - Vec2::new(transform.translation.x, transform.translation.y))
+        .normalize_or_zero();
         velocity.0 = direction * projectile.speed;
     }
 }

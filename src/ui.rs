@@ -5,9 +5,9 @@ use bevy::ui_widgets::Activate;
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
-	fn build(&self, app: &mut App) {
-		app.add_systems(Update, button_system);
-	}
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, button_system);
+    }
 }
 
 fn button_system(

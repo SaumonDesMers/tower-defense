@@ -6,5 +6,5 @@ pub enum GameLayer {
     #[default]
     Default,
     Enemy,
-	Building,
+    Building,
 }

@@ -26,7 +26,10 @@ fn enemy_ai_system(
     pathfinding_map: Res<PathfindingMap>,
 ) {
     for (enemy_ai, transform, mut velocity) in enemy_ai_query.iter_mut() {
-        velocity.0 = pathfinding_map.get_flow(Vec2::new(transform.translation.x, transform.translation.y), 10.0) * enemy_ai.speed;
+        velocity.0 = pathfinding_map.get_flow(
+            Vec2::new(transform.translation.x, transform.translation.y),
+            10.0,
+        ) * enemy_ai.speed;
     }
 }
 

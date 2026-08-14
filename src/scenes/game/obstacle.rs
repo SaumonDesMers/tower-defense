@@ -1,26 +1,25 @@
-use bevy::prelude::*;
 use avian2d::prelude::*;
+use bevy::prelude::*;
 
-use crate::RessourcesHandler;
-use super::selection::Selectable;
-use super::physic::GameLayer;
-use super::buildings::Building;
 use super::BattleField;
+use super::buildings::Building;
+use super::physic::GameLayer;
+use super::selection::Selectable;
+use crate::RessourcesHandler;
 
-pub fn obstacle(
-	ressources_handler: &RessourcesHandler,
-) -> impl Bundle {
-	(
+pub fn obstacle(ressources_handler: &RessourcesHandler) -> impl Bundle {
+    (
         BattleField,
-        Transform::from_xyz(-400.0, 100.0, 0.0)
-            .with_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2 / 2.0)),
+        Transform::from_xyz(-400.0, 100.0, 0.0),
         Mesh2d(ressources_handler.obstacle_mesh.clone()),
         MeshMaterial2d(ressources_handler.obstacle_material.clone()),
         Collider::rectangle(50.0, 200.0),
         RigidBody::Static,
-        CollisionLayers::new([GameLayer::Default, GameLayer::Building], GameLayer::Default),
+        CollisionLayers::new(
+            [GameLayer::Default, GameLayer::Building],
+            GameLayer::Default,
+        ),
         Building,
         Selectable,
     )
 }
-
