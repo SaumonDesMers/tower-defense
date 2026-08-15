@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use avian2d::{debug_render, parry::query, prelude::*};
 use bevy::ecs::relationship::RelationshipSourceCollection;
 use bevy::image::ImageSampler;
@@ -168,6 +170,7 @@ fn update_pathfinding_map(
     target_query: Query<&Transform, With<Base>>,
 ) {
     info!("Updating pathfinding map...");
+    let start_time = Instant::now();
 
     let query_filter = SpatialQueryFilter::from_mask(GameLayer::Building);
     for i in 0..map.tiles.len() {
@@ -228,29 +231,29 @@ fn update_pathfinding_map(
         .copied()
         .min_by_key(|index| map.tiles[*index].distance_to_target as u32)
     {
-        info!(
-            "target ({}) {:?}",
-            map.position(target_index),
-            map.tiles[target_index]
-        );
+        // info!(
+        //     "target ({}) {:?}",
+        //     map.position(target_index),
+        //     map.tiles[target_index]
+        // );
         let mut to_expand = std::collections::VecDeque::new();
         to_expand.push_back(target_index);
         let target_pos = map.position(target_index);
 
         while let Some(current_index) = to_expand.pop_front() {
-            info!(
-                "expand ({}) {:?}",
-                map.position(current_index),
-                map.tiles[current_index]
-            );
+            // info!(
+            //     "expand ({}) {:?}",
+            //     map.position(current_index),
+            //     map.tiles[current_index]
+            // );
             let mut has_obstructed_neighbor = false;
             for neighbor_index in map.neighbor_indices(current_index) {
                 if map.tiles[neighbor_index].walkable && !visited.contains(&neighbor_index) {
-                    info!(
-                        "neighbor ({}) {:?}",
-                        map.position(neighbor_index),
-                        map.tiles[neighbor_index]
-                    );
+                    // info!(
+                    //     "neighbor ({}) {:?}",
+                    //     map.position(neighbor_index),
+                    //     map.tiles[neighbor_index]
+                    // );
                     let neighbor_pos = map.position(neighbor_index);
                     let to_target = target_pos - neighbor_pos;
                     let neighbor = map.tiles[neighbor_index];
@@ -266,7 +269,7 @@ fn update_pathfinding_map(
                         )
                         .is_none()
                     {
-                        info!("not obstructed");
+                        // info!("not obstructed");
                         map.tiles[neighbor_index] = Tile {
                             to_target: to_target.normalize_or_zero(),
                             distance_to_target: map.tiles[target_index].distance_to_target
@@ -277,7 +280,7 @@ fn update_pathfinding_map(
                         visited.insert(neighbor_index);
                         to_expand.push_back(neighbor_index);
                     } else {
-                        info!("obstructed");
+                        // info!("obstructed");
                         has_obstructed_neighbor = true;
                     }
                 }
@@ -302,6 +305,8 @@ fn update_pathfinding_map(
 
         // break;
     }
+
+    info!("Done in {} ms", (Instant::now() - start_time).as_millis());
 
     info!("Updating pathfinding map sprite...");
     if let Some(sprite) = sprite_query.iter_mut().next() {

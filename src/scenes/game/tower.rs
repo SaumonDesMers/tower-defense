@@ -11,6 +11,8 @@ use super::physic::GameLayer;
 use super::projectile::{Projectile, ProjectileHitEvent};
 use super::selection::Selectable;
 use crate::RessourcesHandler;
+use crate::scenes::game::projectile::ProjectileFiredEvent;
+use crate::scenes::game::projectile::ricochet::{Ricochet, SendRicochet};
 
 pub struct TowerPlugin;
 
@@ -51,10 +53,11 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
         Selectable,
         children![(
             Transform::default(),
-            Tower::new(Duration::from_secs_f32(0.5), Damage { amount: 3 }),
+            Tower::new(Duration::from_secs_f32(0.8), Damage::new(5)),
             Collider::circle(200.0),
             Mesh2d(ressources_handler.tower_range_mesh.clone()),
             MeshMaterial2d(ressources_handler.tower_range_material.clone()),
+            SendRicochet,
         )],
     )
 }
@@ -83,23 +86,23 @@ fn tower_system(
                     .distance(target_transform.translation()) as u64
             })
         {
-            commands
+            let projectile_entity = commands
                 .spawn((
                     Transform::from_translation(tower_transform.translation()),
                     Mesh2d(ressources_handler.projectile_mesh.clone()),
                     MeshMaterial2d(ressources_handler.projectile_material.clone()),
-                    Collider::circle(3.0),
+                    Collider::circle(2.0),
                     Sensor,
                     RigidBody::Kinematic,
-                    Projectile::new(target_entity, 200.0),
+                    Projectile::new(target_entity, 500.0, tower.damage),
                 ))
-                .observe(
-                    |hit: On<ProjectileHitEvent>, mut target_query: Query<&mut Health>| {
-                        if let Ok(mut health) = target_query.get_mut(hit.target_entity) {
-                            health.take_damage(Damage { amount: 3 });
-                        }
-                    },
-                );
+                .id();
+
+            commands.trigger(ProjectileFiredEvent {
+                entity: projectile_entity,
+                source_entity: tower_entity,
+                target_entity,
+            });
         }
     }
 }
