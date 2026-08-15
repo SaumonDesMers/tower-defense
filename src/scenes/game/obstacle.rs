@@ -10,7 +10,7 @@ use crate::RessourcesHandler;
 pub fn obstacle(ressources_handler: &RessourcesHandler) -> impl Bundle {
     (
         BattleField,
-        Transform::from_xyz(-400.0, 100.0, 0.0),
+        Transform::from_xyz(0.0, 0.0, 0.0),
         Mesh2d(ressources_handler.obstacle_mesh.clone()),
         MeshMaterial2d(ressources_handler.obstacle_material.clone()),
         Collider::rectangle(50.0, 200.0),

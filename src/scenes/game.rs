@@ -77,7 +77,7 @@ fn setup_battlefield(
         Transform::from_translation(BASE_POSITION.extend(1.0)),
         Mesh2d(meshes.add(Circle::new(10.0))),
         MeshMaterial2d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
-        Base { life: 5 },
+        Base { life: 50000 },
         Collider::circle(10.0),
     ));
 

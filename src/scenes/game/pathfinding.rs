@@ -74,7 +74,10 @@ impl PathfindingMap {
     }
 
     fn position(&self, index: usize) -> Vec2 {
-        Vec2::new((index % self.width) as f32, (index / self.width) as f32) * self.tile_size
+        Vec2::new(
+            (index % self.width) as f32 + 0.5,
+            (index / self.width) as f32 + 0.5,
+        ) * self.tile_size
             + self.position
     }
 
@@ -96,7 +99,7 @@ impl PathfindingMap {
             let to_target = self.tiles[index].to_target;
             let avoidance = self.tiles[index].avoidance;
             let obstacle_distance = avoidance.length();
-            let avoidance_strength = 1.0 / (obstacle_distance - agent_radius).max(0.01);
+            let avoidance_strength = 1.0 / (obstacle_distance - agent_radius);
             (to_target + avoidance.normalize_or_zero() * avoidance_strength).normalize_or_zero()
         } else {
             Vec2::ZERO
@@ -169,13 +172,21 @@ fn update_pathfinding_map(
     let query_filter = SpatialQueryFilter::from_mask(GameLayer::Building);
     for i in 0..map.tiles.len() {
         let pos = map.position(i);
-        if let Some(point_projection) = spatial_query.project_point(pos, false, &query_filter) {
-            let avoidance = pos - point_projection.point;
+
+        // When two colliders overlap and a point is inside one but is closer to the edge of the other one (of which it's outside).
+        // If solid = false, project_point would return the collider with the closest edge, hense missing the one where the point is inside.
+        // So we first project_point with solid = true to test if the point is inside a  collider
+        // Then we project_point with solid = false to get the closest edge.
+        if let Some(point_projection) = spatial_query.project_point(pos, true, &query_filter) {
             map.tiles[i] = Tile {
                 walkable: !point_projection.is_inside,
                 to_target: Vec2::ZERO,
                 distance_to_target: f32::INFINITY,
-                avoidance,
+                avoidance: pos
+                    - spatial_query
+                        .project_point(pos, false, &query_filter)
+                        .expect("Should return Some")
+                        .point,
             };
         } else {
             map.tiles[i] = Tile {
@@ -187,7 +198,7 @@ fn update_pathfinding_map(
         }
     }
 
-    let target_pos = if let Ok(target_transform) = target_query.single() {
+    let base_target_pos = if let Ok(target_transform) = target_query.single() {
         Vec2::new(
             target_transform.translation.x,
             target_transform.translation.y,
@@ -199,35 +210,49 @@ fn update_pathfinding_map(
 
     let mut visited = std::collections::HashSet::new();
     let mut border_cells = std::collections::HashSet::new();
-    let Some(target_index) = map.index(target_pos) else {
+    let Some(base_target_index) = map.index(base_target_pos) else {
         warn!("Target is out of bounds for pathfinding map");
         return;
     };
-    map.tiles[target_index] = Tile {
+    map.tiles[base_target_index] = Tile {
         walkable: true,
         to_target: Vec2::ZERO,
         distance_to_target: 0.0,
         avoidance: Vec2::ZERO,
     };
-    visited.insert(target_index);
-    border_cells.insert(target_index);
+    visited.insert(base_target_index);
+    border_cells.insert(base_target_index);
 
-    while let Some(border_index) = border_cells
+    while let Some(target_index) = border_cells
         .iter()
         .copied()
         .min_by_key(|index| map.tiles[*index].distance_to_target as u32)
     {
+        info!(
+            "target ({}) {:?}",
+            map.position(target_index),
+            map.tiles[target_index]
+        );
         let mut to_expand = std::collections::VecDeque::new();
-        to_expand.push_back(border_index);
-        let current_target_pos = map.position(border_index);
+        to_expand.push_back(target_index);
+        let target_pos = map.position(target_index);
 
-        while let Some(current) = to_expand.pop_front() {
+        while let Some(current_index) = to_expand.pop_front() {
+            info!(
+                "expand ({}) {:?}",
+                map.position(current_index),
+                map.tiles[current_index]
+            );
             let mut has_obstructed_neighbor = false;
-            // for offset in [1, -1, map.width as isize, -(map.width as isize)] {
-            for neighbor_index in map.neighbor_indices(current) {
+            for neighbor_index in map.neighbor_indices(current_index) {
                 if map.tiles[neighbor_index].walkable && !visited.contains(&neighbor_index) {
+                    info!(
+                        "neighbor ({}) {:?}",
+                        map.position(neighbor_index),
+                        map.tiles[neighbor_index]
+                    );
                     let neighbor_pos = map.position(neighbor_index);
-                    let to_target = current_target_pos - neighbor_pos;
+                    let to_target = target_pos - neighbor_pos;
                     let neighbor = map.tiles[neighbor_index];
 
                     if spatial_query
@@ -241,24 +266,25 @@ fn update_pathfinding_map(
                         )
                         .is_none()
                     {
+                        info!("not obstructed");
                         map.tiles[neighbor_index] = Tile {
-                            walkable: neighbor.walkable,
                             to_target: to_target.normalize_or_zero(),
-                            distance_to_target: map.tiles[border_index].distance_to_target
+                            distance_to_target: map.tiles[target_index].distance_to_target
                                 + to_target.length(),
-                            avoidance: neighbor.avoidance,
+                            ..neighbor
                         };
 
                         visited.insert(neighbor_index);
                         to_expand.push_back(neighbor_index);
                     } else {
+                        info!("obstructed");
                         has_obstructed_neighbor = true;
                     }
                 }
             }
 
             if has_obstructed_neighbor {
-                border_cells.insert(current);
+                border_cells.insert(current_index);
             }
         }
 
@@ -273,13 +299,15 @@ fn update_pathfinding_map(
                     })
             })
             .collect();
+
+        // break;
     }
 
     info!("Updating pathfinding map sprite...");
     if let Some(sprite) = sprite_query.iter_mut().next() {
         if let Some(image) = images.get_mut(&sprite.image) {
             for (i, tile) in map.tiles.iter().enumerate() {
-                let color = if tile.walkable {
+                let color = if tile.walkable && tile.to_target != Vec2::ZERO {
                     // Map flow direction to color for visualization
                     let flow = tile.to_target.normalize_or_zero();
                     let flow = (flow + Vec2::ONE) / 2.0; // Map from [-1, 1] to [0, 1]
