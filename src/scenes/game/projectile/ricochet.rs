@@ -11,7 +11,7 @@ use crate::{
 
 /// Component for tower.
 #[derive(Component, Debug, Clone, Copy)]
-pub struct SendRicochet;
+pub struct SendProjectileWithRicochet;
 
 /// Component for projectile.
 /// It store the child Entity which contains the collider needed to find a target.
@@ -24,15 +24,15 @@ impl Ricochet {
     }
 }
 
-/// When a entity with SendRicochet trigger a ProjectileFiredEvent, add:
+/// When a entity with SendProjectileWithRicochet trigger a ProjectileFiredEvent, add:
 /// - a child to the projectile entity with a Collider.
-/// - a Ricochet component storing the Entity of the added child.
+/// - a Ricochet component storing the id of the added child.
 ///
 /// This Collider will be used by the ricochet systems to find a target.
 pub fn on_send_projectile(
     event: On<ProjectileFiredEvent>,
     mut commands: Commands,
-    query: Query<&SendRicochet>,
+    query: Query<&SendProjectileWithRicochet>,
 ) {
     if let (Ok(_), Ok(mut projectile_cmd)) = (
         query.get(event.source_entity),

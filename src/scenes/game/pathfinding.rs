@@ -226,11 +226,26 @@ fn update_pathfinding_map(
     visited.insert(base_target_index);
     border_cells.insert(base_target_index);
 
+    let mut last_target = None;
+
     while let Some(target_index) = border_cells
         .iter()
         .copied()
         .min_by_key(|index| map.tiles[*index].distance_to_target as u32)
     {
+        if Some(target_index) == last_target {
+            border_cells = border_cells
+                .into_iter()
+                .filter(|index| *index != target_index)
+                .collect();
+            warn!(
+                "targeting {target_index} ({}) again, skipping",
+                map.position(target_index)
+            );
+            continue;
+        }
+        last_target = Some(target_index);
+
         // info!(
         //     "target ({}) {:?}",
         //     map.position(target_index),

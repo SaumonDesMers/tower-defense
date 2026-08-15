@@ -12,7 +12,7 @@ use super::projectile::{Projectile, ProjectileHitEvent};
 use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::game::projectile::ProjectileFiredEvent;
-use crate::scenes::game::projectile::ricochet::{Ricochet, SendRicochet};
+use crate::scenes::game::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
 
 pub struct TowerPlugin;
 
@@ -57,7 +57,7 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
             Collider::circle(200.0),
             Mesh2d(ressources_handler.tower_range_mesh.clone()),
             MeshMaterial2d(ressources_handler.tower_range_material.clone()),
-            SendRicochet,
+            SendProjectileWithRicochet,
         )],
     )
 }

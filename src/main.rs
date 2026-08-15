@@ -1,7 +1,5 @@
 #![allow(unused_imports)]
 
-use std::time::Duration;
-
 use avian2d::prelude::*;
 use bevy::{log::LogPlugin, prelude::*};
 use bevy_egui::EguiPlugin;
@@ -11,27 +9,20 @@ mod camera;
 mod scenes;
 mod ui;
 
-use scenes::{SceneState, ScenesPlugin};
-use ui::UIPlugin;
-
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins
-                .set(AssetPlugin {
-                    watch_for_changes_override: Some(true),
-                    ..default()
-                })
-                .set(LogPlugin {
-                    level: bevy::log::Level::INFO,
-                    ..default()
-                }),
+            DefaultPlugins.set(LogPlugin {
+                level: bevy::log::Level::INFO,
+                ..default()
+            }),
             PhysicsPlugins::default(),
             PhysicsPickingPlugin,
             camera::CameraPlugin,
-            UIPlugin,
-            ScenesPlugin,
+            ui::UIPlugin,
+            scenes::ScenesPlugin,
         ))
+        // .add_plugins(PhysicsDebugPlugin::default())
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(RessourcesHandler::default())
