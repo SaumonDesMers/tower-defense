@@ -15,9 +15,7 @@ use crate::scenes::SceneState;
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, button_system);
-    }
+    fn build(&self, _app: &mut App) {}
 }
 
 pub fn ui() -> impl Bundle {
@@ -32,7 +30,7 @@ pub fn ui() -> impl Bundle {
             row_gap: px(10),
             ..default()
         },
-        BackgroundColor(tailwind::ORANGE_200.into()),
+        BackgroundColor(tailwind::VIOLET_200.into()),
         children![
             (
                 button("Main menu"),
@@ -74,41 +72,6 @@ pub fn ui() -> impl Bundle {
     )
 }
 
-const NORMAL_BUTTON: Srgba = tailwind::ORANGE_300;
-const HOVERED_BUTTON: Srgba = tailwind::ORANGE_400;
-const PRESSED_BUTTON: Srgba = tailwind::ORANGE_500;
-
-fn button_system(
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &mut BorderColor,
-            &mut Button,
-        ),
-        Changed<Interaction>,
-    >,
-) {
-    for (interaction, mut color, mut border_color, mut button) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = BackgroundColor::from(PRESSED_BUTTON);
-                *border_color = BorderColor::all(tailwind::RED_400);
-                button.set_changed();
-            }
-            Interaction::Hovered => {
-                *color = BackgroundColor::from(HOVERED_BUTTON);
-                *border_color = BorderColor::all(tailwind::ORANGE_500);
-                button.set_changed();
-            }
-            Interaction::None => {
-                *color = BackgroundColor::from(NORMAL_BUTTON);
-                *border_color = BorderColor::all(tailwind::ORANGE_400);
-            }
-        }
-    }
-}
-
 fn button(text: &str) -> impl Bundle {
     (
         Button,
@@ -121,11 +84,9 @@ fn button(text: &str) -> impl Bundle {
             flex_direction: FlexDirection::Column,
             row_gap: px(10),
             border: UiRect::all(px(5)),
-            border_radius: BorderRadius::all(percent(20)),
+            border_radius: BorderRadius::all(percent(10)),
             ..default()
         },
-        BackgroundColor::from(NORMAL_BUTTON),
-        BorderColor::all(tailwind::ORANGE_400),
-        children![(Text::new(text), TextColor(tailwind::ORANGE_100.into()),)],
+        children![(Text::new(text), TextColor(tailwind::SLATE_200.into()),)],
     )
 }

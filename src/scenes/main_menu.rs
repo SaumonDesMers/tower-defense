@@ -12,16 +12,12 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(SceneState::Menu), setup_menu)
-            .add_systems(OnExit(SceneState::Menu), cleanup_menu)
-            .add_systems(Update, button_system);
+            .add_systems(OnExit(SceneState::Menu), cleanup_menu);
     }
 }
 
 #[derive(Component)]
 struct MainMenu;
-
-#[derive(Component)]
-struct MainMenuButton;
 
 fn setup_menu(mut commands: Commands) {
     info!("Setting up main menu...");
@@ -37,7 +33,7 @@ fn setup_menu(mut commands: Commands) {
             row_gap: px(10),
             ..default()
         },
-        BackgroundColor(tailwind::ORANGE_200.into()),
+        BackgroundColor(tailwind::INDIGO_950.into()),
         children![
             (
                 button("Start Game"),
@@ -74,45 +70,9 @@ fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
     }
 }
 
-const NORMAL_BUTTON: Srgba = tailwind::ORANGE_300;
-const HOVERED_BUTTON: Srgba = tailwind::ORANGE_400;
-const PRESSED_BUTTON: Srgba = tailwind::ORANGE_500;
-
-fn button_system(
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &mut BorderColor,
-            &mut Button,
-        ),
-        (Changed<Interaction>, With<MainMenuButton>),
-    >,
-) {
-    for (interaction, mut color, mut border_color, mut button) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = PRESSED_BUTTON.into();
-                *border_color = BorderColor::all(tailwind::RED_400);
-                button.set_changed();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-                *border_color = BorderColor::all(tailwind::ORANGE_500);
-                button.set_changed();
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-                *border_color = BorderColor::all(tailwind::ORANGE_400);
-            }
-        }
-    }
-}
-
 fn button(text: &str) -> impl Bundle {
     (
         Button,
-        MainMenuButton,
         Node {
             width: px(300),
             height: px(50),
@@ -122,11 +82,9 @@ fn button(text: &str) -> impl Bundle {
             flex_direction: FlexDirection::Column,
             row_gap: px(10),
             border: UiRect::all(px(5)),
-            border_radius: BorderRadius::all(percent(20)),
+            border_radius: BorderRadius::all(percent(10)),
             ..default()
         },
-        BackgroundColor::from(tailwind::ORANGE_300),
-        BorderColor::all(tailwind::ORANGE_400),
-        children![(Text::new(text), TextColor(tailwind::ORANGE_100.into()),)],
+        children![(Text::new(text), TextColor(tailwind::SLATE_200.into()),)],
     )
 }

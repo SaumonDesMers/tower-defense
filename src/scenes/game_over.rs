@@ -12,16 +12,12 @@ pub struct GameOverPlugin;
 impl Plugin for GameOverPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(SceneState::GameOver), setup)
-            .add_systems(OnExit(SceneState::GameOver), cleanup)
-            .add_systems(Update, button_system);
+            .add_systems(OnExit(SceneState::GameOver), cleanup);
     }
 }
 
 #[derive(Component)]
 struct GameOver;
-
-#[derive(Component)]
-struct GameOverButton;
 
 fn setup(mut commands: Commands) {
     info!("Setting up game over screen...");
@@ -37,11 +33,11 @@ fn setup(mut commands: Commands) {
             row_gap: px(10),
             ..default()
         },
-        BackgroundColor(tailwind::ORANGE_200.into()),
+        BackgroundColor(tailwind::VIOLET_200.into()),
         children![
             (
                 Text::new("Game Over"),
-                TextColor(tailwind::ORANGE_800.into()),
+                TextColor(tailwind::VIOLET_800.into()),
             ),
             (
                 button("Restart"),
@@ -72,45 +68,9 @@ fn cleanup(mut commands: Commands, query: Query<Entity, With<GameOver>>) {
     }
 }
 
-const NORMAL_BUTTON: Srgba = tailwind::ORANGE_300;
-const HOVERED_BUTTON: Srgba = tailwind::ORANGE_400;
-const PRESSED_BUTTON: Srgba = tailwind::ORANGE_500;
-
-fn button_system(
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &mut BorderColor,
-            &mut Button,
-        ),
-        (Changed<Interaction>, With<GameOverButton>),
-    >,
-) {
-    for (interaction, mut color, mut border_color, mut button) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = PRESSED_BUTTON.into();
-                *border_color = BorderColor::all(tailwind::RED_400);
-                button.set_changed();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-                *border_color = BorderColor::all(tailwind::ORANGE_500);
-                button.set_changed();
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-                *border_color = BorderColor::all(tailwind::ORANGE_400);
-            }
-        }
-    }
-}
-
 fn button(text: &str) -> impl Bundle {
     (
         Button,
-        GameOverButton,
         Node {
             width: px(300),
             height: px(50),
@@ -120,11 +80,9 @@ fn button(text: &str) -> impl Bundle {
             flex_direction: FlexDirection::Column,
             row_gap: px(10),
             border: UiRect::all(px(5)),
-            border_radius: BorderRadius::all(percent(20)),
+            border_radius: BorderRadius::all(percent(10)),
             ..default()
         },
-        BackgroundColor::from(tailwind::ORANGE_300),
-        BorderColor::all(tailwind::ORANGE_400),
-        children![(Text::new(text), TextColor(tailwind::ORANGE_100.into()),)],
+        children![(Text::new(text), TextColor(tailwind::SLATE_200.into()),)],
     )
 }
