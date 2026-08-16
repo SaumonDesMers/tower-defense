@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 use crate::{
     RessourcesHandler,
-    scenes::game::{
+    scenes::battlefield::{
         enemy::Enemy,
         projectile::{Projectile, ProjectileFiredEvent, ProjectileHitEvent},
     },

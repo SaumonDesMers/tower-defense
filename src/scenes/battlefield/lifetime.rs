@@ -31,7 +31,7 @@ fn update_lifetime(
     time: Res<Time>,
 ) {
     for (entity, mut lifetime) in query.iter_mut() {
-        lifetime.time_left -= time.delta();
+        lifetime.time_left = lifetime.time_left.saturating_sub(time.delta());
         if lifetime.time_left.is_zero() {
             commands.entity(entity).despawn();
         }

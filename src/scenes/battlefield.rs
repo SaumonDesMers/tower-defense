@@ -4,6 +4,8 @@ use bevy::ui::prelude::*;
 
 mod base;
 mod buildings;
+mod click_attack;
+mod currency;
 mod enemy;
 mod health;
 mod lifetime;
@@ -17,7 +19,17 @@ mod tower;
 mod ui;
 mod wave;
 
-use crate::scenes::SceneState;
+use crate::scenes::{
+    SceneState,
+    battlefield::{
+        click_attack::{ClickAttackGlobalData, ClickAttackPlugin},
+        currency::{Currency, CurrencyPlugin},
+        obstacle::{ObstacleGlobalData, ObstaclePlugin},
+        pathfinding::PathfindingMap,
+        tower::TowerGlobalData,
+        wave::WaveGlobalData,
+    },
+};
 
 use base::{BASE_POSITION, Base, BasePlugin};
 use buildings::{Building, BuildingsPlugin};
@@ -48,16 +60,26 @@ impl Plugin for BattleFieldPlugin {
             SelectionPlugin,
             TowerPlugin,
             BasePlugin,
+            ObstaclePlugin,
+            CurrencyPlugin,
+            ClickAttackPlugin,
         ))
-        .add_systems(OnEnter(SceneState::Game), setup_battlefield)
-        .add_systems(OnExit(SceneState::Game), cleanup_battlefield);
+        .add_systems(OnEnter(SceneState::Battlefield), setup)
+        .add_systems(OnExit(SceneState::Battlefield), cleanup)
+        .configure_sets(
+            Update,
+            BattleFieldSet.run_if(in_state(SceneState::Battlefield)),
+        );
     }
 }
+
+#[derive(SystemSet, Debug, PartialEq, Eq, Hash, Clone)]
+pub struct BattleFieldSet;
 
 #[derive(Component, Clone)]
 pub struct BattleField;
 
-fn setup_battlefield(
+fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -71,23 +93,35 @@ fn setup_battlefield(
         MeshMaterial2d(materials.add(Color::srgba(0.5, 0.5, 0.5, 1.0))),
     ));
 
-    // Base
-    commands.spawn((
-        BattleField,
-        Transform::from_translation(BASE_POSITION.extend(1.0)),
-        Mesh2d(meshes.add(Circle::new(10.0))),
-        MeshMaterial2d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
-        Base { life: 50000 },
-        Collider::circle(10.0),
-    ));
-
     // UI
     commands.spawn((BattleField, ui::ui()));
+
+    commands.insert_resource(Currency { coin: 0 });
+    commands.insert_resource(PathfindingMap::new(
+        Vec2::new(-1000.0, -500.0),
+        200,
+        100,
+        10.0,
+    ));
+    commands.insert_resource(WaveGlobalData::new());
+    commands.insert_resource(TowerGlobalData { price: 10 });
+    commands.insert_resource(ObstacleGlobalData { price: 10 });
+    commands.insert_resource(ClickAttackGlobalData {
+        damage: Damage::new(10),
+        mesh: meshes.add(Circle::new(100.0)),
+    });
 }
 
-fn cleanup_battlefield(mut commands: Commands, query: Query<Entity, With<BattleField>>) {
+fn cleanup(mut commands: Commands, query: Query<Entity, With<BattleField>>) {
     info!("Cleaning up battlefield...");
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
+
+    commands.remove_resource::<Currency>();
+    commands.remove_resource::<PathfindingMap>();
+    commands.remove_resource::<WaveGlobalData>();
+    commands.remove_resource::<TowerGlobalData>();
+    commands.remove_resource::<ObstacleGlobalData>();
+    commands.remove_resource::<ClickAttackGlobalData>();
 }

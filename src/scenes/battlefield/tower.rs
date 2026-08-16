@@ -11,14 +11,18 @@ use super::physic::GameLayer;
 use super::projectile::{Projectile, ProjectileHitEvent};
 use super::selection::Selectable;
 use crate::RessourcesHandler;
-use crate::scenes::game::projectile::ProjectileFiredEvent;
-use crate::scenes::game::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
+use crate::scenes::SceneState;
+use crate::scenes::battlefield::BattleFieldSet;
+use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
+use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
 
 pub struct TowerPlugin;
 
 impl Plugin for TowerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, tower_system);
+        app.add_observer(buy_obstacle.run_if(in_state(SceneState::Battlefield)))
+            .add_systems(Update, tower_system.in_set(BattleFieldSet));
     }
 }
 
@@ -34,6 +38,28 @@ impl Tower {
             attack_timer: Timer::from_seconds(attack_duration.as_secs_f32(), TimerMode::Once),
             damage,
         }
+    }
+}
+
+#[derive(Resource)]
+pub struct TowerGlobalData {
+    pub price: u32,
+}
+
+#[derive(Event)]
+pub struct BuyTowerEvent;
+
+fn buy_obstacle(
+    _: On<BuyTowerEvent>,
+    mut commands: Commands,
+    ressources_handler: Res<RessourcesHandler>,
+    mut currency: ResMut<Currency>,
+    mut tower_data: ResMut<TowerGlobalData>,
+) {
+    if currency.coin >= tower_data.price {
+        currency.coin -= tower_data.price;
+        tower_data.price += (tower_data.price as f32 * 0.5) as u32;
+        commands.spawn(tower(&ressources_handler));
     }
 }
 

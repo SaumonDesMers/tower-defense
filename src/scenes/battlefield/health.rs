@@ -33,12 +33,9 @@ impl Health {
     }
 }
 
-fn death(mut commands: Commands, mut query: Query<(Entity, &Health)>) {
-    for (entity, health) in query.iter_mut() {
-        if health.current <= 0 {
-            commands.entity(entity).despawn();
-        }
-    }
+#[derive(EntityEvent)]
+pub struct KilledEvent {
+    pub entity: Entity,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -49,5 +46,14 @@ pub struct Damage {
 impl Damage {
     pub fn new(amount: i32) -> Self {
         Self { amount }
+    }
+}
+
+fn death(mut commands: Commands, mut query: Query<(Entity, &Health)>) {
+    for (entity, health) in query.iter_mut() {
+        if health.current <= 0 {
+            commands.trigger(KilledEvent { entity });
+            commands.entity(entity).despawn();
+        }
     }
 }

@@ -8,7 +8,7 @@ pub struct SelectionPlugin;
 impl Plugin for SelectionPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(attach_selection_observers)
-            .add_systems(Update, _log_on_selection_change)
+            // .add_systems(Update, _log_on_selection_change)
             .insert_resource(Selection {
                 entity: None,
                 observer: None,

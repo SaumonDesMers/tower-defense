@@ -11,8 +11,8 @@ pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(SceneState::Menu), setup_menu)
-            .add_systems(OnExit(SceneState::Menu), cleanup_menu);
+        app.add_systems(OnEnter(SceneState::MainMenu), setup_menu)
+            .add_systems(OnExit(SceneState::MainMenu), cleanup_menu);
     }
 }
 
@@ -33,7 +33,7 @@ fn setup_menu(mut commands: Commands) {
             row_gap: px(10),
             ..default()
         },
-        BackgroundColor(tailwind::INDIGO_950.into()),
+        BackgroundColor(tailwind::INDIGO_900.into()),
         children![
             (
                 button("Start Game"),
@@ -41,15 +41,9 @@ fn setup_menu(mut commands: Commands) {
                     |_activate: On<Activate>,
                      mut scene_next_state: ResMut<NextState<SceneState>>| {
                         info!("Start Game button clicked!");
-                        scene_next_state.set(SceneState::Game);
+                        scene_next_state.set(SceneState::Battlefield);
                     }
                 )
-            ),
-            (
-                button("Options"),
-                observe(|_activate: On<Activate>| {
-                    info!("Options button clicked!");
-                })
             ),
             (
                 button("Exit"),

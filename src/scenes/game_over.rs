@@ -33,18 +33,18 @@ fn setup(mut commands: Commands) {
             row_gap: px(10),
             ..default()
         },
-        BackgroundColor(tailwind::VIOLET_200.into()),
+        BackgroundColor(tailwind::INDIGO_900.into()),
         children![
             (
                 Text::new("Game Over"),
-                TextColor(tailwind::VIOLET_800.into()),
+                TextColor(tailwind::SLATE_200.into()),
             ),
             (
                 button("Restart"),
                 observe(
                     |_activate: On<Activate>,
                      mut scene_next_state: ResMut<NextState<SceneState>>| {
-                        scene_next_state.set(SceneState::Game);
+                        scene_next_state.set(SceneState::Battlefield);
                     }
                 )
             ),
@@ -53,7 +53,7 @@ fn setup(mut commands: Commands) {
                 observe(
                     |_activate: On<Activate>,
                      mut scene_next_state: ResMut<NextState<SceneState>>| {
-                        scene_next_state.set(SceneState::Menu);
+                        scene_next_state.set(SceneState::MainMenu);
                     }
                 )
             ),

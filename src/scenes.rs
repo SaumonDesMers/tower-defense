@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-mod game;
+mod battlefield;
 mod game_over;
 mod main_menu;
 
@@ -10,7 +10,7 @@ impl Plugin for ScenesPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             main_menu::MainMenuPlugin,
-            game::BattleFieldPlugin,
+            battlefield::BattleFieldPlugin,
             game_over::GameOverPlugin,
         ))
         .init_state::<SceneState>();
@@ -20,7 +20,7 @@ impl Plugin for ScenesPlugin {
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum SceneState {
     #[default]
-    Menu,
-    Game,
+    MainMenu,
+    Battlefield,
     GameOver,
 }

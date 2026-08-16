@@ -1,4 +1,5 @@
 use bevy::color::palettes::tailwind;
+use bevy::ecs::system::command;
 use bevy::prelude::*;
 use bevy::ui::prelude::*;
 use bevy::ui_widgets::Activate;
@@ -7,15 +8,21 @@ pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, button_system);
+        app.add_systems(Update, button_system)
+            .add_observer(on_button_enable)
+            .add_observer(on_button_disable);
     }
 }
+
+#[derive(Component)]
+pub struct ButtonDisabled;
 
 #[derive(Component, Clone, Copy)]
 pub struct ButtonColors {
     base: Srgba,
     hovered: Srgba,
     pressed: Srgba,
+    disabled: Srgba,
 }
 
 impl Default for ButtonColors {
@@ -24,28 +31,37 @@ impl Default for ButtonColors {
             base: tailwind::SLATE_800,
             hovered: tailwind::SLATE_900,
             pressed: tailwind::SLATE_950,
+            disabled: tailwind::GRAY_950,
         }
     }
 }
 
 fn button_system(
     mut commands: Commands,
-    mut interaction_query: Query<
+    mut button_query: Query<
         (
             Entity,
             &Interaction,
+            Has<ButtonDisabled>,
             &mut Button,
             &mut BackgroundColor,
             &mut BorderColor,
             Option<&ButtonColors>,
         ),
-        (Changed<Interaction>, With<Button>),
+        Changed<Interaction>,
     >,
 ) {
-    for (entity, interaction, mut button, mut background, mut border, colors) in
-        &mut interaction_query
+    for (entity, interaction, disabled, mut button, mut background, mut border, colors) in
+        &mut button_query
     {
         let colors = colors.copied().unwrap_or_default();
+
+        if disabled {
+            *background = colors.disabled.into();
+            *border = colors.disabled.into();
+            continue;
+        }
+
         match *interaction {
             Interaction::Pressed => {
                 commands.trigger(Activate { entity: entity });
@@ -63,5 +79,49 @@ fn button_system(
                 *border = colors.base.into();
             }
         }
+    }
+}
+
+fn on_button_disable(
+    event: On<Add, ButtonDisabled>,
+    mut button_query: Query<(
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &Children,
+        Option<&ButtonColors>,
+    )>,
+    mut text_query: Query<&mut TextColor>,
+) {
+    let (mut background, mut border, children, colors) = button_query
+        .get_mut(event.entity)
+        .expect("Entity stored by event should be valid.");
+    let colors = colors.copied().unwrap_or_default();
+
+    *background = colors.disabled.into();
+    *border = colors.disabled.into();
+    if let Ok(mut text_color) = text_query.get_mut(children[0]) {
+        *text_color = TextColor(tailwind::SLATE_500.into());
+    }
+}
+
+fn on_button_enable(
+    event: On<Remove, ButtonDisabled>,
+    mut button_query: Query<(
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &Children,
+        Option<&ButtonColors>,
+    )>,
+    mut text_query: Query<&mut TextColor>,
+) {
+    let (mut background, mut border, children, colors) = button_query
+        .get_mut(event.entity)
+        .expect("Entity stored by event should be valid.");
+    let colors = colors.copied().unwrap_or_default();
+
+    *background = colors.base.into();
+    *border = colors.base.into();
+    if let Ok(mut text_color) = text_query.get_mut(children[0]) {
+        *text_color = TextColor(tailwind::SLATE_200.into());
     }
 }

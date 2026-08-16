@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 
+use crate::scenes::battlefield::wave::WaveState;
+
 pub struct BuildingsPlugin;
 
 impl Plugin for BuildingsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(move_building_on_drag);
+        app.add_observer(move_building_on_drag.run_if(in_state(WaveState::Finished)));
     }
 }
 

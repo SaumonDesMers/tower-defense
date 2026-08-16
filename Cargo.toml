@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.18.0", features = ["dynamic_linking", "experimental_bevy_feathers", "file_watcher"] }
-avian2d = "0.6.0"
-bevy_pancam = "0.20.0"
+bevy = { version = "0.19.0", features = ["dynamic_linking"] }
+avian2d = "0.7.0"
+bevy_pancam = "0.21.0"
 ron = "0.12.0"
 serde = "1.0.228"
 rand = "0.10.0"

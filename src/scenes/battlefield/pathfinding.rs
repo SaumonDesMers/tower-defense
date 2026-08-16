@@ -4,7 +4,6 @@ use avian2d::{debug_render, parry::query, prelude::*};
 use bevy::ecs::relationship::RelationshipSourceCollection;
 use bevy::image::ImageSampler;
 use bevy::image::TextureAccessError;
-use bevy::reflect::List;
 use bevy::{
     asset::RenderAssetUsages,
     prelude::*,
@@ -17,25 +16,17 @@ pub struct PathfindingPlugin;
 
 impl Plugin for PathfindingPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(PathfindingMap::new(
-            Vec2::new(-1000.0, -500.0),
-            200,
-            100,
-            10.0,
-        ))
-        .add_systems(Startup, setup)
+        app.add_systems(
+            Update,
+            create_debug_sprite.run_if(resource_added::<PathfindingMap>),
+        )
+        .add_systems(
+            Update,
+            remove_debug_sprite.run_if(resource_removed::<PathfindingMap>),
+        )
         .add_observer(update_pathfinding_map)
         .add_systems(Update, show_pathfinding_map);
     }
-}
-
-fn setup(
-    mut commands: Commands,
-    images: ResMut<Assets<Image>>,
-    pathfinding_map: ResMut<PathfindingMap>,
-) {
-    commands.trigger(UpdatePathfindingMapEvent);
-    pathfinding_map.create_debug_sprite(commands, images);
 }
 
 #[derive(Resource)]
@@ -106,44 +97,6 @@ impl PathfindingMap {
         } else {
             Vec2::ZERO
         }
-    }
-
-    fn create_debug_sprite(&self, mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-        let mut image = Image::new(
-            Extent3d {
-                width: self.width as u32,
-                height: self.height as u32,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            self.tiles
-                .iter()
-                .flat_map(|tile| {
-                    if tile.walkable {
-                        vec![0, 255, 0, 255]
-                    } else {
-                        vec![255, 0, 0, 255]
-                    }
-                })
-                .collect::<Vec<u8>>(),
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
-        );
-        image.sampler = ImageSampler::nearest();
-
-        let mut sprite = Sprite::from_image(images.add(image));
-        sprite.custom_size = Some(Vec2::new(
-            self.width as f32 * self.tile_size,
-            self.height as f32 * self.tile_size,
-        ));
-        sprite.color = Color::WHITE.with_alpha(0.3);
-
-        commands.spawn((
-            Transform::from_xyz(0.0, 0.0, 0.1),
-            sprite,
-            PathfindingMapSprite,
-            Visibility::Hidden,
-        ));
     }
 }
 
@@ -325,7 +278,7 @@ fn update_pathfinding_map(
 
     info!("Updating pathfinding map sprite...");
     if let Some(sprite) = sprite_query.iter_mut().next() {
-        if let Some(image) = images.get_mut(&sprite.image) {
+        if let Some(mut image) = images.get_mut(&sprite.image) {
             for (i, tile) in map.tiles.iter().enumerate() {
                 let color = if tile.walkable && tile.to_target != Vec2::ZERO {
                     // Map flow direction to color for visualization
@@ -362,8 +315,57 @@ fn update_pathfinding_map(
     }
 }
 
+fn create_debug_sprite(
+    mut commands: Commands,
+    map: ResMut<PathfindingMap>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let mut image = Image::new(
+        Extent3d {
+            width: map.width as u32,
+            height: map.height as u32,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        map.tiles
+            .iter()
+            .flat_map(|tile| {
+                if tile.walkable {
+                    vec![0, 255, 0, 255]
+                } else {
+                    vec![255, 0, 0, 255]
+                }
+            })
+            .collect::<Vec<u8>>(),
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
+    );
+    image.sampler = ImageSampler::nearest();
+
+    let mut sprite = Sprite::from_image(images.add(image));
+    sprite.custom_size = Some(Vec2::new(
+        map.width as f32 * map.tile_size,
+        map.height as f32 * map.tile_size,
+    ));
+    sprite.color = Color::WHITE.with_alpha(0.3);
+
+    commands.spawn((
+        Transform::from_xyz(0.0, 0.0, 0.1),
+        sprite,
+        PathfindingMapSprite,
+        Visibility::Hidden,
+    ));
+}
+
+fn remove_debug_sprite(mut commands: Commands, query: Query<Entity, With<PathfindingMapSprite>>) {
+    if let Ok(entity) = query.single() {
+        if let Ok(mut cmd) = commands.get_entity(entity) {
+            cmd.despawn();
+        }
+    }
+}
+
 fn show_pathfinding_map(
-    // _: On<ShowPathfindingMapEvent>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Visibility, With<PathfindingMapSprite>>,
 ) {
