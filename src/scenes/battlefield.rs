@@ -96,7 +96,7 @@ fn setup(
     // UI
     commands.spawn((BattleField, ui::ui()));
 
-    commands.insert_resource(Currency { coin: 0 });
+    commands.insert_resource(Currency { coin: 10000 });
     commands.insert_resource(PathfindingMap::new(
         Vec2::new(-1000.0, -500.0),
         200,

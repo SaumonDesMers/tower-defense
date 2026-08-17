@@ -1,14 +1,18 @@
+use std::collections::VecDeque;
+use std::iter::successors;
 use std::time::Instant;
 
 use avian2d::{debug_render, parry::query, prelude::*};
 use bevy::ecs::relationship::RelationshipSourceCollection;
 use bevy::image::ImageSampler;
 use bevy::image::TextureAccessError;
+use bevy::platform::collections::HashSet;
 use bevy::{
     asset::RenderAssetUsages,
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
+use itertools::Itertools;
 
 use super::{base::Base, physic::GameLayer};
 
@@ -47,9 +51,7 @@ impl PathfindingMap {
             tile_size,
             tiles: vec![
                 Tile {
-                    walkable: true,
                     to_target: Vec2::ZERO,
-                    distance_to_target: 0.0,
                     avoidance: Vec2::ZERO,
                 };
                 width * height
@@ -102,9 +104,7 @@ impl PathfindingMap {
 
 #[derive(Clone, Copy, Debug)]
 struct Tile {
-    pub walkable: bool,
     pub to_target: Vec2,
-    pub distance_to_target: f32,
     pub avoidance: Vec2,
 }
 
@@ -113,207 +113,6 @@ pub struct UpdatePathfindingMapEvent;
 
 #[derive(Component)]
 struct PathfindingMapSprite;
-
-fn update_pathfinding_map(
-    _: On<UpdatePathfindingMapEvent>,
-    mut map: ResMut<PathfindingMap>,
-    spatial_query: SpatialQuery,
-    mut sprite_query: Query<&mut Sprite, With<PathfindingMapSprite>>,
-    mut images: ResMut<Assets<Image>>,
-    target_query: Query<&Transform, With<Base>>,
-) {
-    info!("Updating pathfinding map...");
-    let start_time = Instant::now();
-
-    let query_filter = SpatialQueryFilter::from_mask(GameLayer::Building);
-    for i in 0..map.tiles.len() {
-        let pos = map.position(i);
-
-        // When two colliders overlap and a point is inside one but is closer to the edge of the other one (of which it's outside).
-        // If solid = false, project_point would return the collider with the closest edge, hense missing the one where the point is inside.
-        // So we first project_point with solid = true to test if the point is inside a  collider
-        // Then we project_point with solid = false to get the closest edge.
-        if let Some(point_projection) = spatial_query.project_point(pos, true, &query_filter) {
-            map.tiles[i] = Tile {
-                walkable: !point_projection.is_inside,
-                to_target: Vec2::ZERO,
-                distance_to_target: f32::INFINITY,
-                avoidance: pos
-                    - spatial_query
-                        .project_point(pos, false, &query_filter)
-                        .expect("Should return Some")
-                        .point,
-            };
-        } else {
-            map.tiles[i] = Tile {
-                walkable: true,
-                to_target: Vec2::ZERO,
-                distance_to_target: f32::INFINITY,
-                avoidance: Vec2::ZERO,
-            };
-        }
-    }
-
-    let base_target_pos = if let Ok(target_transform) = target_query.single() {
-        Vec2::new(
-            target_transform.translation.x,
-            target_transform.translation.y,
-        )
-    } else {
-        warn!("No target found for pathfinding map");
-        return;
-    };
-
-    let mut visited = std::collections::HashSet::new();
-    let mut border_cells = std::collections::HashSet::new();
-    let Some(base_target_index) = map.index(base_target_pos) else {
-        warn!("Target is out of bounds for pathfinding map");
-        return;
-    };
-    map.tiles[base_target_index] = Tile {
-        walkable: true,
-        to_target: Vec2::ZERO,
-        distance_to_target: 0.0,
-        avoidance: Vec2::ZERO,
-    };
-    visited.insert(base_target_index);
-    border_cells.insert(base_target_index);
-
-    let mut last_target = None;
-
-    while let Some(target_index) = border_cells
-        .iter()
-        .copied()
-        .min_by_key(|index| map.tiles[*index].distance_to_target as u32)
-    {
-        if Some(target_index) == last_target {
-            border_cells = border_cells
-                .into_iter()
-                .filter(|index| *index != target_index)
-                .collect();
-            warn!(
-                "targeting {target_index} ({}) again, skipping",
-                map.position(target_index)
-            );
-            continue;
-        }
-        last_target = Some(target_index);
-
-        // info!(
-        //     "target ({}) {:?}",
-        //     map.position(target_index),
-        //     map.tiles[target_index]
-        // );
-        let mut to_expand = std::collections::VecDeque::new();
-        to_expand.push_back(target_index);
-        let target_pos = map.position(target_index);
-
-        while let Some(current_index) = to_expand.pop_front() {
-            // info!(
-            //     "expand ({}) {:?}",
-            //     map.position(current_index),
-            //     map.tiles[current_index]
-            // );
-            let mut has_obstructed_neighbor = false;
-            for neighbor_index in map.neighbor_indices(current_index) {
-                if map.tiles[neighbor_index].walkable && !visited.contains(&neighbor_index) {
-                    // info!(
-                    //     "neighbor ({}) {:?}",
-                    //     map.position(neighbor_index),
-                    //     map.tiles[neighbor_index]
-                    // );
-                    let neighbor_pos = map.position(neighbor_index);
-                    let to_target = target_pos - neighbor_pos;
-                    let neighbor = map.tiles[neighbor_index];
-
-                    if spatial_query
-                        .cast_ray(
-                            neighbor_pos,
-                            Dir2::new(to_target)
-                                .expect("Direction from cell to target should be valid"),
-                            to_target.length(),
-                            false,
-                            &query_filter,
-                        )
-                        .is_none()
-                    {
-                        // info!("not obstructed");
-                        map.tiles[neighbor_index] = Tile {
-                            to_target: to_target.normalize_or_zero(),
-                            distance_to_target: map.tiles[target_index].distance_to_target
-                                + to_target.length(),
-                            ..neighbor
-                        };
-
-                        visited.insert(neighbor_index);
-                        to_expand.push_back(neighbor_index);
-                    } else {
-                        // info!("obstructed");
-                        has_obstructed_neighbor = true;
-                    }
-                }
-            }
-
-            if has_obstructed_neighbor {
-                border_cells.insert(current_index);
-            }
-        }
-
-        // Filter all the border cells that don't have any obstructed neighbor (meaning they are not border cell anymore).
-        border_cells = border_cells
-            .into_iter()
-            .filter(|index| {
-                map.neighbor_indices(*index)
-                    .into_iter()
-                    .any(|neighbor_index| {
-                        map.tiles[neighbor_index].walkable && !visited.contains(&neighbor_index)
-                    })
-            })
-            .collect();
-
-        // break;
-    }
-
-    info!("Done in {} ms", (Instant::now() - start_time).as_millis());
-
-    info!("Updating pathfinding map sprite...");
-    if let Some(sprite) = sprite_query.iter_mut().next() {
-        if let Some(mut image) = images.get_mut(&sprite.image) {
-            for (i, tile) in map.tiles.iter().enumerate() {
-                let color = if tile.walkable && tile.to_target != Vec2::ZERO {
-                    // Map flow direction to color for visualization
-                    let flow = tile.to_target.normalize_or_zero();
-                    let flow = (flow + Vec2::ONE) / 2.0; // Map from [-1, 1] to [0, 1]
-                    let color_x_0 = Vec3::new(1.0, 0.0, 0.0);
-                    let color_x_1 = Vec3::new(0.0, 1.0, 0.0);
-                    let color_y_0 = Vec3::new(1.0, 0.0, 1.0);
-                    let color_y_1 = Vec3::new(0.0, 0.0, 1.0);
-                    let color = color_x_0 * (1.0 - flow.x) + color_x_1 * flow.x;
-                    let color = color * (1.0 - flow.y)
-                        + (color_y_0 * (1.0 - flow.y) + color_y_1 * flow.y) * flow.y;
-
-                    Color::srgb(color.x, color.y, color.z)
-                } else {
-                    Color::srgb(0.0, 0.0, 0.0)
-                };
-                match image.set_color_at(
-                    (i % map.width) as u32,
-                    (map.height - 1 - (i / map.width)) as u32,
-                    color,
-                ) {
-                    Ok(_) => {}
-                    Err(TextureAccessError::OutOfBounds { x, y, z: _ }) => warn!(
-                        "Failed to set color: Out of bounds at ({}, {}) in image of size {:?}",
-                        x,
-                        y,
-                        image.size()
-                    ),
-                    Err(e) => warn!("Failed to set color: {:?}", e),
-                }
-            }
-        }
-    }
-}
 
 fn create_debug_sprite(
     mut commands: Commands,
@@ -327,16 +126,7 @@ fn create_debug_sprite(
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        map.tiles
-            .iter()
-            .flat_map(|tile| {
-                if tile.walkable {
-                    vec![0, 255, 0, 255]
-                } else {
-                    vec![255, 0, 0, 255]
-                }
-            })
-            .collect::<Vec<u8>>(),
+        vec![0; map.width * map.height * 4],
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
     );
@@ -377,6 +167,172 @@ fn show_pathfinding_map(
                 Visibility::Hidden => Visibility::Visible,
                 _ => *visibility,
             };
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TileForUpdate {
+    path: Option<usize>,
+    visited: bool,
+}
+
+fn update_pathfinding_map(
+    _: On<UpdatePathfindingMapEvent>,
+    mut map: ResMut<PathfindingMap>,
+    spatial_query: SpatialQuery,
+    mut sprite_query: Query<&mut Sprite, With<PathfindingMapSprite>>,
+    mut images: ResMut<Assets<Image>>,
+    target_query: Query<&Transform, With<Base>>,
+) {
+    info!("Updating pathfinding map v3...");
+    let start_time = Instant::now();
+
+    let shape = Collider::from(Circle::new(5.0));
+    let mut config = ShapeCastConfig::default();
+    let filter = SpatialQueryFilter::from_mask(GameLayer::Building);
+
+    let base_target_pos = if let Ok(target_transform) = target_query.single() {
+        Vec2::new(
+            target_transform.translation.x,
+            target_transform.translation.y,
+        )
+    } else {
+        warn!("No target found for pathfinding map");
+        return;
+    };
+
+    let Some(base_target_index) = map.index(base_target_pos) else {
+        warn!("Target is out of bounds for pathfinding map");
+        return;
+    };
+    map.tiles[base_target_index] = Tile {
+        to_target: Vec2::ZERO,
+        avoidance: Vec2::ZERO,
+    };
+
+    let mut tiles = vec![
+        TileForUpdate {
+            path: None,
+            visited: false,
+        };
+        map.tiles.len()
+    ];
+    let mut to_visit = VecDeque::new();
+    to_visit.push_back(base_target_index);
+    tiles[base_target_index] = TileForUpdate {
+        path: None,
+        visited: true,
+    };
+
+    while let Some(current) = to_visit.pop_front() {
+        for neighbor_index in map.neighbor_indices(current) {
+            if tiles[neighbor_index].visited {
+                continue;
+            }
+            tiles[neighbor_index].visited = true;
+
+            let neighbor_pos = map.position(neighbor_index);
+
+            // When two colliders overlap and a point is inside one but is closer to the edge of the other one (of which it's outside).
+            // If solid = false, project_point would return the collider with the closest edge, hense missing the one where the point is inside.
+            // So we first call project_point with solid = true to test if the point is inside a collider.
+            // And then we call project_point with solid = false to get the closest edge.
+            let walkable = spatial_query
+                .project_point(neighbor_pos, true, &filter)
+                .map(|point_projection| !point_projection.is_inside)
+                .unwrap_or(true);
+
+            if walkable {
+                map.tiles[neighbor_index].avoidance = spatial_query
+                    .project_point(neighbor_pos, false, &filter)
+                    .map(|point_projection| neighbor_pos - point_projection.point)
+                    .unwrap_or(Vec2::ZERO);
+                tiles[neighbor_index].path = Some(current);
+                to_visit.push_back(neighbor_index);
+            }
+        }
+    }
+
+    for start in 0..tiles.len() {
+        // Trace back from start to target to get the full path.
+        // Skip start as it is not needed (and it avoid a zero vector later).
+        let full_path: Vec<usize> = successors(Some(start), |index| {
+            tiles.get(*index).and_then(|tile| tile.path)
+        })
+        .skip(1)
+        .collect();
+
+        let current_pos = map.position(start);
+        // Follow the path in reverse and find the first tile that have a direct line of sight with the start tile.
+        let to_target = full_path.into_iter().rev().find_map(|i| {
+            let target_pos = map.position(i);
+            let to_target = target_pos - current_pos;
+
+            config.max_distance = to_target.length();
+            if spatial_query
+                .cast_shape(
+                    &shape,
+                    current_pos,
+                    0.0,
+                    Dir2::new(to_target).expect("Origin should never be the same as target"),
+                    &config,
+                    &filter,
+                )
+                .is_none()
+            {
+                Some(to_target)
+            } else {
+                None
+            }
+        });
+
+        if let Some(to_target) = to_target {
+            map.tiles[start].to_target = to_target.normalize_or_zero();
+        }
+    }
+
+    info!("Done in {} ms", (Instant::now() - start_time).as_millis());
+
+    info!("Updating pathfinding map sprite...");
+
+    let Ok(Some(mut image)) = sprite_query
+        .single_mut()
+        .map(|sprite| images.get_mut(&sprite.image))
+    else {
+        return;
+    };
+
+    for (i, tile) in map.tiles.iter().enumerate() {
+        let color = if tile.to_target != Vec2::ZERO {
+            // Map flow direction to color for visualization
+            let flow = tile.to_target.normalize_or_zero();
+            let flow = (flow + Vec2::ONE) / 2.0; // Map from [-1, 1] to [0, 1]
+            let color_x_0 = Vec3::new(1.0, 0.0, 0.0);
+            let color_x_1 = Vec3::new(0.0, 1.0, 0.0);
+            let color_y_0 = Vec3::new(1.0, 0.0, 1.0);
+            let color_y_1 = Vec3::new(0.0, 0.0, 1.0);
+            let color = color_x_0 * (1.0 - flow.x) + color_x_1 * flow.x;
+            let color =
+                color * (1.0 - flow.y) + (color_y_0 * (1.0 - flow.y) + color_y_1 * flow.y) * flow.y;
+
+            Color::srgb(color.x, color.y, color.z)
+        } else {
+            Color::srgb(0.0, 0.0, 0.0)
+        };
+        match image.set_color_at(
+            (i % map.width) as u32,
+            (map.height - 1 - (i / map.width)) as u32,
+            color,
+        ) {
+            Ok(_) => {}
+            Err(TextureAccessError::OutOfBounds { x, y, z: _ }) => warn!(
+                "Failed to set color: Out of bounds at ({}, {}) in image of size {:?}",
+                x,
+                y,
+                image.size()
+            ),
+            Err(e) => warn!("Failed to set color: {:?}", e),
         }
     }
 }
