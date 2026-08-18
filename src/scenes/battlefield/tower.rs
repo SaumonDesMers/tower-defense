@@ -3,7 +3,6 @@ use std::time::Duration;
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use super::BattleField;
 use super::buildings::Building;
 use super::enemy::Enemy;
 use super::health::{Damage, Health};
@@ -11,7 +10,7 @@ use super::physic::GameLayer;
 use super::projectile::{Projectile, ProjectileHitEvent};
 use super::selection::Selectable;
 use crate::RessourcesHandler;
-use crate::scenes::SceneState;
+use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
 use crate::scenes::battlefield::currency::Currency;
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
@@ -21,7 +20,7 @@ pub struct TowerPlugin;
 
 impl Plugin for TowerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(buy_obstacle.run_if(in_state(SceneState::Battlefield)))
+        app.add_observer(buy_tower.run_if(in_state(AppState::InGame)))
             .add_systems(Update, tower_system.in_set(BattleFieldSet));
     }
 }
@@ -49,7 +48,7 @@ pub struct TowerGlobalData {
 #[derive(Event)]
 pub struct BuyTowerEvent;
 
-fn buy_obstacle(
+fn buy_tower(
     _: On<BuyTowerEvent>,
     mut commands: Commands,
     ressources_handler: Res<RessourcesHandler>,
@@ -65,7 +64,7 @@ fn buy_obstacle(
 
 pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
     (
-        BattleField,
+        DespawnOnExit(AppState::InGame),
         Transform::from_xyz(0.0, 0.0, 0.1),
         Mesh2d(ressources_handler.tower_body_mesh.clone()),
         MeshMaterial2d(ressources_handler.tower_body_material.clone()),
@@ -74,6 +73,7 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
             [GameLayer::Default, GameLayer::Building],
             GameLayer::Default,
         ),
+        RigidBody::Kinematic,
         Health::new(100),
         Building,
         Selectable,

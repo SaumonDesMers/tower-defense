@@ -32,17 +32,15 @@ impl Ricochet {
 pub fn on_send_projectile(
     event: On<ProjectileFiredEvent>,
     mut commands: Commands,
-    query: Query<&SendProjectileWithRicochet>,
+    query: Query<(), With<SendProjectileWithRicochet>>,
 ) {
-    if let (Ok(_), Ok(mut projectile_cmd)) = (
-        query.get(event.source_entity),
-        commands.get_entity(event.entity),
-    ) {
+    if let Ok(mut projectile_cmd) = commands.get_entity(event.entity)
+        && query.contains(event.source_entity)
+    {
         let collider = projectile_cmd
             .commands_mut()
-            .spawn((Collider::circle(100.0), Sensor))
+            .spawn((Collider::circle(100.0), Sensor, ChildOf(event.entity)))
             .id();
-        projectile_cmd.add_child(collider);
         projectile_cmd.insert(Ricochet(collider));
     }
 }

@@ -2,11 +2,12 @@ use avian2d::prelude::*;
 use bevy::{prelude::*, sprite_render::AlphaMode2d};
 
 use crate::scenes::{
-    SceneState,
+    AppState,
     battlefield::{
         BattleFieldSet,
         enemy::Enemy,
         health::{self, Damage, Health},
+        wave::WavePhase,
     },
 };
 
@@ -14,8 +15,12 @@ pub struct ClickAttackPlugin;
 
 impl Plugin for ClickAttackPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(on_click_attack.run_if(in_state(SceneState::Battlefield)))
-            .add_observer(attack_on_click.run_if(in_state(SceneState::Battlefield)))
+        app.add_observer(on_click_attack.run_if(in_state(AppState::InGame)))
+            .add_observer(
+                attack_on_click
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(in_state(WavePhase::Spawning).or_else(in_state(WavePhase::Killing))),
+            )
             .add_systems(Update, (apply_damage, fade_out).in_set(BattleFieldSet));
     }
 }

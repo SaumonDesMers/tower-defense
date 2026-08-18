@@ -13,14 +13,14 @@ impl Plugin for ScenesPlugin {
             battlefield::BattleFieldPlugin,
             game_over::GameOverPlugin,
         ))
-        .init_state::<SceneState>();
+        .init_state::<AppState>();
     }
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum SceneState {
+pub enum AppState {
     #[default]
     MainMenu,
-    Battlefield,
+    InGame,
     GameOver,
 }

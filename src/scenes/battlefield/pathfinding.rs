@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::iter::successors;
+use std::time::Duration;
 use std::time::Instant;
 
 use avian2d::{debug_render, parry::query, prelude::*};
@@ -14,6 +15,8 @@ use bevy::{
 };
 use itertools::Itertools;
 
+use crate::scenes::AppState;
+
 use super::{base::Base, physic::GameLayer};
 
 pub struct PathfindingPlugin;
@@ -22,18 +25,43 @@ impl Plugin for PathfindingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            create_debug_sprite.run_if(resource_added::<PathfindingMap>),
+            (create_debug_sprite, update_when_added)
+                .chain()
+                .run_if(resource_added::<PathfindingMap>),
         )
         .add_systems(
             Update,
             remove_debug_sprite.run_if(resource_removed::<PathfindingMap>),
         )
-        .add_observer(update_pathfinding_map)
-        .add_systems(Update, show_pathfinding_map);
+        .add_observer(on_update)
+        .add_systems(
+            Update,
+            (
+                update_setup.run_if(in_state(PathfindingMapInternalState::NeedUpdate)),
+                update_floodfill.run_if(in_state(PathfindingMapInternalState::Floodfill)),
+                update_final_pass.run_if(in_state(PathfindingMapInternalState::FinalPass)),
+                update_copy.run_if(in_state(PathfindingMapInternalState::Copy)),
+            ),
+        )
+        .add_systems(
+            OnTransition {
+                exited: PathfindingMapInternalState::Copy,
+                entered: PathfindingMapInternalState::Valid,
+            },
+            update_debug_sprite,
+        )
+        .add_systems(Update, show_debug_sprite)
+        .add_sub_state::<PathfindingMapInternalState>();
     }
 }
 
-#[derive(Resource)]
+#[derive(Clone, Copy, Debug)]
+struct Tile {
+    pub to_target: Vec2,
+    pub avoidance: Vec2,
+}
+
+#[derive(Resource, Clone)]
 pub struct PathfindingMap {
     position: Vec2,
     width: usize,
@@ -100,16 +128,226 @@ impl PathfindingMap {
             Vec2::ZERO
         }
     }
-}
 
-#[derive(Clone, Copy, Debug)]
-struct Tile {
-    pub to_target: Vec2,
-    pub avoidance: Vec2,
+    pub fn is_accessible_from_base(&self, pos: Vec2) -> bool {
+        if let Some(index) = self.index(pos) {
+            self.tiles[index].to_target != Vec2::ZERO
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Event)]
 pub struct UpdatePathfindingMapEvent;
+
+fn update_when_added(mut commands: Commands) {
+    commands.trigger(UpdatePathfindingMapEvent);
+}
+
+#[derive(SubStates, Debug, Clone, Eq, PartialEq, Hash, Default)]
+#[source(AppState = AppState::InGame)]
+enum PathfindingMapInternalState {
+    #[default]
+    Valid,
+    NeedUpdate,
+    Floodfill,
+    FinalPass,
+    Copy,
+}
+
+#[derive(Resource)]
+struct DataForUpdate {
+    map: PathfindingMap,
+    tiles: Vec<TileForUpdate>,
+    to_visit: VecDeque<usize>,
+    index: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TileForUpdate {
+    path: Option<usize>,
+    visited: bool,
+}
+
+fn on_update(
+    _: On<UpdatePathfindingMapEvent>,
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+    map: Res<PathfindingMap>,
+) {
+    info!("Start update");
+    commands.insert_resource(DataForUpdate {
+        map: PathfindingMap {
+            tiles: vec![
+                Tile {
+                    to_target: Vec2::ZERO,
+                    avoidance: Vec2::ZERO,
+                };
+                map.width * map.height
+            ],
+            ..*map
+        },
+        tiles: vec![
+            TileForUpdate {
+                path: None,
+                visited: false,
+            };
+            map.tiles.len()
+        ],
+        to_visit: VecDeque::new(),
+        index: 0,
+    });
+    next_state.set(PathfindingMapInternalState::NeedUpdate);
+}
+
+fn update_setup(
+    mut data: ResMut<DataForUpdate>,
+    target_query: Query<&Transform, With<Base>>,
+    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+) {
+    info!("Setup");
+    let base_target_pos = if let Ok(target_transform) = target_query.single() {
+        Vec2::new(
+            target_transform.translation.x,
+            target_transform.translation.y,
+        )
+    } else {
+        warn!("No target found for pathfinding map");
+        return;
+    };
+
+    let Some(base_target_index) = data.map.index(base_target_pos) else {
+        warn!("Target is out of bounds for pathfinding map");
+        return;
+    };
+
+    for tile in data.map.tiles.iter_mut() {
+        *tile = Tile {
+            to_target: Vec2::ZERO,
+            avoidance: Vec2::ZERO,
+        };
+    }
+
+    data.to_visit.push_back(base_target_index);
+    data.tiles[base_target_index] = TileForUpdate {
+        path: None,
+        visited: true,
+    };
+
+    next_state.set(PathfindingMapInternalState::Floodfill);
+}
+
+fn update_floodfill(
+    mut data: ResMut<DataForUpdate>,
+    spatial_query: SpatialQuery,
+    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+) {
+    info!("Floodfill");
+    let filter = SpatialQueryFilter::from_mask(GameLayer::Building);
+
+    while let Some(current) = data.to_visit.pop_front() {
+        for neighbor_index in data.map.neighbor_indices(current) {
+            if data.tiles[neighbor_index].visited {
+                continue;
+            }
+            data.tiles[neighbor_index].visited = true;
+
+            let neighbor_pos = data.map.position(neighbor_index);
+
+            // When two colliders overlap and a point is inside one but is closer to the edge of the other one (of which it's outside).
+            // If solid = false, project_point would return the collider with the closest edge, hense missing the one where the point is inside.
+            // So we first call project_point with solid = true to test if the point is inside a collider.
+            // And then we call project_point with solid = false to get the closest edge.
+            let walkable = spatial_query
+                .project_point(neighbor_pos, true, &filter)
+                .map(|point_projection| !point_projection.is_inside)
+                .unwrap_or(true);
+
+            if walkable {
+                data.map.tiles[neighbor_index].avoidance = spatial_query
+                    .project_point(neighbor_pos, false, &filter)
+                    .map(|point_projection| neighbor_pos - point_projection.point)
+                    .unwrap_or(Vec2::ZERO);
+                data.tiles[neighbor_index].path = Some(current);
+                data.to_visit.push_back(neighbor_index);
+            }
+        }
+    }
+
+    next_state.set(PathfindingMapInternalState::FinalPass);
+}
+
+fn update_final_pass(
+    mut data: ResMut<DataForUpdate>,
+    spatial_query: SpatialQuery,
+    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+) {
+    info!("final_pass");
+    let start_time = Instant::now();
+
+    let shape = Collider::from(Circle::new(5.0));
+    let mut config = ShapeCastConfig::default();
+    let filter = SpatialQueryFilter::from_mask(GameLayer::Building);
+
+    for start in data.index..data.tiles.len() {
+        // Stop after some time to continue on the next frame.
+        if Instant::now() - start_time > Duration::from_millis(30) {
+            data.index = start;
+            return;
+        }
+
+        // Trace back from start to target to get the full path.
+        // Skip start as it is not needed (and it avoid a zero vector later).
+        let full_path: Vec<usize> = successors(Some(start), |index| {
+            data.tiles.get(*index).and_then(|tile| tile.path)
+        })
+        .skip(1)
+        .collect();
+
+        let current_pos = data.map.position(start);
+        // Follow the path in reverse and find the first tile that have a direct line of sight with the start tile.
+        let to_target = full_path.into_iter().rev().find_map(|i| {
+            let target_pos = data.map.position(i);
+            let to_target = target_pos - current_pos;
+
+            config.max_distance = to_target.length();
+            if spatial_query
+                .cast_shape(
+                    &shape,
+                    current_pos,
+                    0.0,
+                    Dir2::new(to_target).expect("Origin should never be the same as target"),
+                    &config,
+                    &filter,
+                )
+                .is_none()
+            {
+                Some(to_target)
+            } else {
+                None
+            }
+        });
+
+        if let Some(to_target) = to_target {
+            data.map.tiles[start].to_target = to_target.normalize_or_zero();
+        }
+    }
+
+    next_state.set(PathfindingMapInternalState::Copy);
+}
+
+fn update_copy(
+    mut commands: Commands,
+    data: ResMut<DataForUpdate>,
+    mut map: ResMut<PathfindingMap>,
+    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+) {
+    info!("copy");
+    *map = data.map.clone();
+    next_state.set(PathfindingMapInternalState::Valid);
+    commands.remove_resource::<DataForUpdate>();
+}
 
 #[derive(Component)]
 struct PathfindingMapSprite;
@@ -155,7 +393,7 @@ fn remove_debug_sprite(mut commands: Commands, query: Query<Entity, With<Pathfin
     }
 }
 
-fn show_pathfinding_map(
+fn show_debug_sprite(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Visibility, With<PathfindingMapSprite>>,
 ) {
@@ -171,131 +409,12 @@ fn show_pathfinding_map(
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct TileForUpdate {
-    path: Option<usize>,
-    visited: bool,
-}
-
-fn update_pathfinding_map(
-    _: On<UpdatePathfindingMapEvent>,
-    mut map: ResMut<PathfindingMap>,
-    spatial_query: SpatialQuery,
+fn update_debug_sprite(
+    map: ResMut<PathfindingMap>,
     mut sprite_query: Query<&mut Sprite, With<PathfindingMapSprite>>,
     mut images: ResMut<Assets<Image>>,
-    target_query: Query<&Transform, With<Base>>,
 ) {
-    info!("Updating pathfinding map v3...");
-    let start_time = Instant::now();
-
-    let shape = Collider::from(Circle::new(5.0));
-    let mut config = ShapeCastConfig::default();
-    let filter = SpatialQueryFilter::from_mask(GameLayer::Building);
-
-    let base_target_pos = if let Ok(target_transform) = target_query.single() {
-        Vec2::new(
-            target_transform.translation.x,
-            target_transform.translation.y,
-        )
-    } else {
-        warn!("No target found for pathfinding map");
-        return;
-    };
-
-    let Some(base_target_index) = map.index(base_target_pos) else {
-        warn!("Target is out of bounds for pathfinding map");
-        return;
-    };
-    map.tiles[base_target_index] = Tile {
-        to_target: Vec2::ZERO,
-        avoidance: Vec2::ZERO,
-    };
-
-    let mut tiles = vec![
-        TileForUpdate {
-            path: None,
-            visited: false,
-        };
-        map.tiles.len()
-    ];
-    let mut to_visit = VecDeque::new();
-    to_visit.push_back(base_target_index);
-    tiles[base_target_index] = TileForUpdate {
-        path: None,
-        visited: true,
-    };
-
-    while let Some(current) = to_visit.pop_front() {
-        for neighbor_index in map.neighbor_indices(current) {
-            if tiles[neighbor_index].visited {
-                continue;
-            }
-            tiles[neighbor_index].visited = true;
-
-            let neighbor_pos = map.position(neighbor_index);
-
-            // When two colliders overlap and a point is inside one but is closer to the edge of the other one (of which it's outside).
-            // If solid = false, project_point would return the collider with the closest edge, hense missing the one where the point is inside.
-            // So we first call project_point with solid = true to test if the point is inside a collider.
-            // And then we call project_point with solid = false to get the closest edge.
-            let walkable = spatial_query
-                .project_point(neighbor_pos, true, &filter)
-                .map(|point_projection| !point_projection.is_inside)
-                .unwrap_or(true);
-
-            if walkable {
-                map.tiles[neighbor_index].avoidance = spatial_query
-                    .project_point(neighbor_pos, false, &filter)
-                    .map(|point_projection| neighbor_pos - point_projection.point)
-                    .unwrap_or(Vec2::ZERO);
-                tiles[neighbor_index].path = Some(current);
-                to_visit.push_back(neighbor_index);
-            }
-        }
-    }
-
-    for start in 0..tiles.len() {
-        // Trace back from start to target to get the full path.
-        // Skip start as it is not needed (and it avoid a zero vector later).
-        let full_path: Vec<usize> = successors(Some(start), |index| {
-            tiles.get(*index).and_then(|tile| tile.path)
-        })
-        .skip(1)
-        .collect();
-
-        let current_pos = map.position(start);
-        // Follow the path in reverse and find the first tile that have a direct line of sight with the start tile.
-        let to_target = full_path.into_iter().rev().find_map(|i| {
-            let target_pos = map.position(i);
-            let to_target = target_pos - current_pos;
-
-            config.max_distance = to_target.length();
-            if spatial_query
-                .cast_shape(
-                    &shape,
-                    current_pos,
-                    0.0,
-                    Dir2::new(to_target).expect("Origin should never be the same as target"),
-                    &config,
-                    &filter,
-                )
-                .is_none()
-            {
-                Some(to_target)
-            } else {
-                None
-            }
-        });
-
-        if let Some(to_target) = to_target {
-            map.tiles[start].to_target = to_target.normalize_or_zero();
-        }
-    }
-
-    info!("Done in {} ms", (Instant::now() - start_time).as_millis());
-
-    info!("Updating pathfinding map sprite...");
-
+    info!("update_debug_sprite");
     let Ok(Some(mut image)) = sprite_query
         .single_mut()
         .map(|sprite| images.get_mut(&sprite.image))

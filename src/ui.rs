@@ -9,13 +9,19 @@ pub struct UIPlugin;
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, button_system)
-            .add_observer(on_button_enable)
-            .add_observer(on_button_disable);
+            .add_observer(on_button_enable);
+        // .add_observer(on_button_disable);
     }
 }
 
 #[derive(Component)]
-pub struct ButtonDisabled;
+struct ButtonDisabled(i32);
+
+#[derive(EntityEvent)]
+pub struct EnableButtonEvent {
+    pub entity: Entity,
+    pub enable: bool,
+}
 
 #[derive(Component, Clone, Copy)]
 pub struct ButtonColors {
@@ -82,31 +88,12 @@ fn button_system(
     }
 }
 
-fn on_button_disable(
-    event: On<Add, ButtonDisabled>,
-    mut button_query: Query<(
-        &mut BackgroundColor,
-        &mut BorderColor,
-        &Children,
-        Option<&ButtonColors>,
-    )>,
-    mut text_query: Query<&mut TextColor>,
-) {
-    let (mut background, mut border, children, colors) = button_query
-        .get_mut(event.entity)
-        .expect("Entity stored by event should be valid.");
-    let colors = colors.copied().unwrap_or_default();
-
-    *background = colors.disabled.into();
-    *border = colors.disabled.into();
-    if let Ok(mut text_color) = text_query.get_mut(children[0]) {
-        *text_color = TextColor(tailwind::SLATE_500.into());
-    }
-}
-
 fn on_button_enable(
-    event: On<Remove, ButtonDisabled>,
+    event: On<EnableButtonEvent>,
+    mut commands: Commands,
     mut button_query: Query<(
+        Entity,
+        Option<&mut ButtonDisabled>,
         &mut BackgroundColor,
         &mut BorderColor,
         &Children,
@@ -114,14 +101,48 @@ fn on_button_enable(
     )>,
     mut text_query: Query<&mut TextColor>,
 ) {
-    let (mut background, mut border, children, colors) = button_query
+    let (entity, disabled, mut background, mut border, children, colors) = button_query
         .get_mut(event.entity)
         .expect("Entity stored by event should be valid.");
     let colors = colors.copied().unwrap_or_default();
 
-    *background = colors.base.into();
-    *border = colors.base.into();
-    if let Ok(mut text_color) = text_query.get_mut(children[0]) {
-        *text_color = TextColor(tailwind::SLATE_200.into());
+    if let Some(mut disabled) = disabled {
+        disabled.0 += if event.enable { -1 } else { 1 };
+
+        if disabled.0 == 0 {
+            commands.entity(entity).remove::<ButtonDisabled>();
+
+            *background = colors.base.into();
+            *border = colors.base.into();
+            if let Ok(mut text_color) = text_query.get_mut(children[0]) {
+                *text_color = TextColor(tailwind::SLATE_200.into());
+            }
+        }
+    } else if !event.enable {
+        commands.entity(entity).insert(ButtonDisabled(1));
+
+        *background = colors.disabled.into();
+        *border = colors.disabled.into();
+        if let Ok(mut text_color) = text_query.get_mut(children[0]) {
+            *text_color = TextColor(tailwind::SLATE_500.into());
+        }
+    } else {
+        warn!("Trying to enable an already enabled button.");
     }
 }
+
+// fn on_button_enable(
+//     event: On<Remove, ButtonDisabled>,
+//     mut button_query: Query<(
+//         &mut BackgroundColor,
+//         &mut BorderColor,
+//         &Children,
+//         Option<&ButtonColors>,
+//     )>,
+//     mut text_query: Query<&mut TextColor>,
+// ) {
+//     let (mut background, mut border, children, colors) = button_query
+//         .get_mut(event.entity)
+//         .expect("Entity stored by event should be valid.");
+//     let colors = colors.copied().unwrap_or_default();
+// }

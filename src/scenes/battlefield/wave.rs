@@ -1,13 +1,13 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use super::BattleField;
 use super::enemy::{Enemy, EnemyAI};
 use super::health::Health;
 use super::lifetime::Lifetime;
 use super::spawner::{Spawnable, Spawner};
 
 use crate::RessourcesHandler;
+use crate::scenes::AppState;
 use crate::scenes::battlefield::currency::DropCoin;
 use crate::scenes::battlefield::wave;
 
@@ -16,17 +16,18 @@ pub struct WavePlugin;
 impl Plugin for WavePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(start_wave)
-            .add_observer(detect_finish_spawning.run_if(in_state(WaveState::Spawning)))
+            .add_observer(detect_finish_spawning.run_if(in_state(WavePhase::Spawning)))
             .add_systems(
                 Update,
-                detect_finish_killing.run_if(in_state(WaveState::Killing)),
+                detect_finish_killing.run_if(in_state(WavePhase::Killing)),
             )
-            .init_state::<WaveState>();
+            .add_sub_state::<WavePhase>();
     }
 }
 
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum WaveState {
+#[derive(SubStates, Debug, Clone, Eq, PartialEq, Hash, Default)]
+#[source(AppState = AppState::InGame)]
+pub enum WavePhase {
     Spawning,
     Killing,
     #[default]
@@ -35,21 +36,15 @@ pub enum WaveState {
 
 #[derive(Resource)]
 pub struct WaveGlobalData {
-    count: u32,
-    delay: f32,
-}
-
-impl WaveGlobalData {
-    pub fn new() -> Self {
-        Self {
-            count: 1,
-            delay: 1.0,
-        }
-    }
+    pub count: u32,
+    pub delay: f32,
 }
 
 #[derive(Event)]
 pub struct LaunchWaveEvent;
+
+#[derive(Component)]
+pub struct WaveSpawnerZone(pub Vec2);
 
 #[derive(Component)]
 struct WaveSpawner;
@@ -57,10 +52,16 @@ struct WaveSpawner;
 fn start_wave(
     _: On<LaunchWaveEvent>,
     mut commands: Commands,
+    wave_spawner: Query<(Entity, &WaveSpawnerZone)>,
     ressources_handler: Res<RessourcesHandler>,
-    mut next_wave_state: ResMut<NextState<WaveState>>,
+    mut next_wave_state: ResMut<NextState<WavePhase>>,
     mut wave_data: ResMut<WaveGlobalData>,
 ) {
+    let Ok((spawner, zone)) = wave_spawner.single() else {
+        warn!("No wave spawner found");
+        return;
+    };
+
     let enemy_count = wave_data.count * wave_data.count;
     let total_time = (enemy_count as f32 + 0.1) * wave_data.delay;
     info!(
@@ -68,15 +69,15 @@ fn start_wave(
         wave_data.delay
     );
 
-    next_wave_state.set(WaveState::Spawning);
+    next_wave_state.set(WavePhase::Spawning);
     commands.spawn((
-        BattleField,
-        Transform::from_xyz(900.0, 0.0, 1.0),
+        WaveSpawner,
+        Transform::from_xyz(0.0, 0.0, 1.0),
         Spawner::new(
             std::time::Duration::from_secs_f32(wave_data.delay),
-            Vec2::new(100.0, 1000.0),
+            zone.0,
             Spawnable((
-                BattleField,
+                DespawnOnExit(AppState::InGame),
                 Mesh2d(ressources_handler.enemy_mesh.clone()),
                 MeshMaterial2d(ressources_handler.enemy_material.clone()),
                 Collider::circle(5.0),
@@ -88,7 +89,7 @@ fn start_wave(
             )),
         ),
         Lifetime::new(std::time::Duration::from_secs_f32(total_time)),
-        WaveSpawner,
+        ChildOf(spawner),
     ));
 
     wave_data.count += 1;
@@ -97,16 +98,16 @@ fn start_wave(
 
 fn detect_finish_spawning(
     _: On<Despawn, WaveSpawner>,
-    mut next_wave_state: ResMut<NextState<WaveState>>,
+    mut next_wave_state: ResMut<NextState<WavePhase>>,
 ) {
-    next_wave_state.set(WaveState::Killing);
+    next_wave_state.set(WavePhase::Killing);
 }
 
 fn detect_finish_killing(
     enemies: Query<(), With<Enemy>>,
-    mut next_wave_state: ResMut<NextState<WaveState>>,
+    mut next_wave_state: ResMut<NextState<WavePhase>>,
 ) {
     if enemies.is_empty() {
-        next_wave_state.set(WaveState::Finished);
+        next_wave_state.set(WavePhase::Finished);
     }
 }

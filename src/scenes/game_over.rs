@@ -5,14 +5,14 @@ use bevy::prelude::*;
 use bevy::ui::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use crate::scenes::SceneState;
+use crate::scenes::AppState;
 
 pub struct GameOverPlugin;
 
 impl Plugin for GameOverPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(SceneState::GameOver), setup)
-            .add_systems(OnExit(SceneState::GameOver), cleanup);
+        app.add_systems(OnEnter(AppState::GameOver), setup)
+            .add_systems(OnExit(AppState::GameOver), cleanup);
     }
 }
 
@@ -42,18 +42,16 @@ fn setup(mut commands: Commands) {
             (
                 button("Restart"),
                 observe(
-                    |_activate: On<Activate>,
-                     mut scene_next_state: ResMut<NextState<SceneState>>| {
-                        scene_next_state.set(SceneState::Battlefield);
+                    |_activate: On<Activate>, mut scene_next_state: ResMut<NextState<AppState>>| {
+                        scene_next_state.set(AppState::InGame);
                     }
                 )
             ),
             (
                 button("Main menu"),
                 observe(
-                    |_activate: On<Activate>,
-                     mut scene_next_state: ResMut<NextState<SceneState>>| {
-                        scene_next_state.set(SceneState::MainMenu);
+                    |_activate: On<Activate>, mut scene_next_state: ResMut<NextState<AppState>>| {
+                        scene_next_state.set(AppState::MainMenu);
                     }
                 )
             ),

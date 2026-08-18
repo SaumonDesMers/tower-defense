@@ -5,14 +5,14 @@ use bevy::prelude::*;
 use bevy::ui::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use crate::scenes::SceneState;
+use crate::scenes::AppState;
 
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(SceneState::MainMenu), setup_menu)
-            .add_systems(OnExit(SceneState::MainMenu), cleanup_menu);
+        app.add_systems(OnEnter(AppState::MainMenu), setup_menu)
+            .add_systems(OnExit(AppState::MainMenu), cleanup_menu);
     }
 }
 
@@ -39,9 +39,9 @@ fn setup_menu(mut commands: Commands) {
                 button("Start Game"),
                 observe(
                     |_activate: On<Activate>,
-                     mut scene_next_state: ResMut<NextState<SceneState>>| {
+                     mut scene_next_state: ResMut<NextState<AppState>>| {
                         info!("Start Game button clicked!");
-                        scene_next_state.set(SceneState::Battlefield);
+                        scene_next_state.set(AppState::InGame);
                     }
                 )
             ),

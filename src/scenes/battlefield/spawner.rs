@@ -45,7 +45,7 @@ impl Spawner {
 
 fn spawn_things(
     mut commands: Commands,
-    mut query: Query<(&mut Spawner, &Transform)>,
+    mut query: Query<(&mut Spawner, &GlobalTransform)>,
     time: Res<Time>,
 ) {
     for (mut spawner, transform) in query.iter_mut() {
@@ -69,6 +69,6 @@ fn spawn_things(
         );
         spawner
             .spawnable
-            .spawn(&mut commands, transform.translation + rand_translation);
+            .spawn(&mut commands, transform.translation() + rand_translation);
     }
 }

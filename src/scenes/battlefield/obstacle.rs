@@ -1,19 +1,18 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use super::BattleField;
 use super::buildings::Building;
 use super::physic::GameLayer;
 use super::selection::Selectable;
 use crate::RessourcesHandler;
-use crate::scenes::SceneState;
+use crate::scenes::AppState;
 use crate::scenes::battlefield::currency::Currency;
 
 pub struct ObstaclePlugin;
 
 impl Plugin for ObstaclePlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(buy_obstacle.run_if(in_state(SceneState::Battlefield)));
+        app.add_observer(buy_obstacle.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -41,16 +40,16 @@ fn buy_obstacle(
 
 pub fn obstacle(ressources_handler: &RessourcesHandler) -> impl Bundle {
     (
-        BattleField,
+        DespawnOnExit(AppState::InGame),
         Transform::from_xyz(0.0, 0.0, 0.0),
         Mesh2d(ressources_handler.obstacle_mesh.clone()),
         MeshMaterial2d(ressources_handler.obstacle_material.clone()),
         Collider::rectangle(50.0, 200.0),
-        RigidBody::Static,
         CollisionLayers::new(
             [GameLayer::Default, GameLayer::Building],
             GameLayer::Default,
         ),
+        RigidBody::Kinematic,
         Building,
         Selectable,
     )

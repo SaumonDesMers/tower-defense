@@ -1,7 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::scenes::SceneState;
+use crate::scenes::AppState;
 
 use super::base::Base;
 use super::pathfinding::PathfindingMap;
@@ -12,11 +12,11 @@ impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            enemy_ai_system.run_if(in_state(SceneState::Battlefield)),
+            enemy_ai_system.run_if(in_state(AppState::InGame)),
         )
         .add_systems(
             Update,
-            enemy_reached_target_system.run_if(in_state(SceneState::Battlefield)),
+            enemy_reached_target_system.run_if(in_state(AppState::InGame)),
         );
     }
 }

@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 
-use crate::scenes::battlefield::wave::WaveState;
+use crate::scenes::battlefield::{pathfinding::UpdatePathfindingMapEvent, wave::WavePhase};
 
 pub struct BuildingsPlugin;
 
 impl Plugin for BuildingsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(move_building_on_drag.run_if(in_state(WaveState::Finished)));
+        app.add_observer(move_building_on_drag.run_if(in_state(WavePhase::Finished)))
+            .add_observer(on_drag_end.run_if(in_state(WavePhase::Finished)));
     }
 }
 
@@ -30,5 +31,15 @@ fn move_building_on_drag(
         } else if drag.button == PointerButton::Secondary {
             transform.rotate(Quat::from_rotation_z(-drag.delta.x * 0.01));
         }
+    }
+}
+
+fn on_drag_end(
+    drag: On<Pointer<DragEnd>>,
+    mut commands: Commands,
+    building_query: Query<(), With<Building>>,
+) {
+    if building_query.contains(drag.entity) {
+        commands.trigger(UpdatePathfindingMapEvent);
     }
 }
