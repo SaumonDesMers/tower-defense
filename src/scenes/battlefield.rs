@@ -115,7 +115,7 @@ fn setup(
         WaveSpawnerZone(Vec2::new(100.0, 1000.0)),
         Transform::from_xyz(950.0, 0.0, 0.0),
         Mesh2d(meshes.add(Rectangle::new(100.0, 1000.0))),
-        MeshMaterial2d(materials.add(Color::from(tailwind::RED_600).with_alpha(0.5))),
+        MeshMaterial2d(materials.add(Color::from(tailwind::RED_600))),
         Collider::from(Rectangle::new(100.0, 1000.0)),
     ));
 

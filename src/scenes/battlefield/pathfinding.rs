@@ -33,35 +33,22 @@ impl Plugin for PathfindingPlugin {
             Update,
             remove_debug_sprite.run_if(resource_removed::<PathfindingMap>),
         )
+        .add_observer(on_partial_update)
         .add_observer(on_update)
-        .add_systems(
-            Update,
-            (
-                update_setup.run_if(in_state(PathfindingMapInternalState::NeedUpdate)),
-                update_floodfill.run_if(in_state(PathfindingMapInternalState::Floodfill)),
-                update_final_pass.run_if(in_state(PathfindingMapInternalState::FinalPass)),
-                update_copy.run_if(in_state(PathfindingMapInternalState::Copy)),
-            ),
-        )
-        .add_systems(
-            OnTransition {
-                exited: PathfindingMapInternalState::Copy,
-                entered: PathfindingMapInternalState::Valid,
-            },
-            update_debug_sprite,
-        )
-        .add_systems(Update, show_debug_sprite)
-        .add_sub_state::<PathfindingMapInternalState>();
+        .add_observer(on_update_debug_sprite)
+        .add_systems(Update, show_debug_sprite);
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Default, Clone, Copy)]
 struct Tile {
-    pub to_target: Vec2,
-    pub avoidance: Vec2,
+    to_target: Vec2,
+    avoidance: Vec2,
+    path: Option<usize>,
+    visited: bool,
 }
 
-#[derive(Resource, Clone)]
+#[derive(Resource)]
 pub struct PathfindingMap {
     position: Vec2,
     width: usize,
@@ -77,13 +64,7 @@ impl PathfindingMap {
             width,
             height,
             tile_size,
-            tiles: vec![
-                Tile {
-                    to_target: Vec2::ZERO,
-                    avoidance: Vec2::ZERO,
-                };
-                width * height
-            ],
+            tiles: vec![Tile::default(); width * height],
         }
     }
 
@@ -130,83 +111,31 @@ impl PathfindingMap {
     }
 
     pub fn is_accessible_from_base(&self, pos: Vec2) -> bool {
-        if let Some(index) = self.index(pos) {
-            self.tiles[index].to_target != Vec2::ZERO
-        } else {
-            false
-        }
+        self.index(pos)
+            .map(|index| self.tiles[index].path)
+            .flatten()
+            .is_some()
     }
 }
 
 #[derive(Event)]
 pub struct UpdatePathfindingMapEvent;
 
+#[derive(Event)]
+pub struct PartialUpdatePathfindingMapEvent;
+
 fn update_when_added(mut commands: Commands) {
-    commands.trigger(UpdatePathfindingMapEvent);
+    commands.trigger(PartialUpdatePathfindingMapEvent);
 }
 
-#[derive(SubStates, Debug, Clone, Eq, PartialEq, Hash, Default)]
-#[source(AppState = AppState::InGame)]
-enum PathfindingMapInternalState {
-    #[default]
-    Valid,
-    NeedUpdate,
-    Floodfill,
-    FinalPass,
-    Copy,
-}
-
-#[derive(Resource)]
-struct DataForUpdate {
-    map: PathfindingMap,
-    tiles: Vec<TileForUpdate>,
-    to_visit: VecDeque<usize>,
-    index: usize,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct TileForUpdate {
-    path: Option<usize>,
-    visited: bool,
-}
-
-fn on_update(
-    _: On<UpdatePathfindingMapEvent>,
+fn on_partial_update(
+    _: On<PartialUpdatePathfindingMapEvent>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
-    map: Res<PathfindingMap>,
-) {
-    info!("Start update");
-    commands.insert_resource(DataForUpdate {
-        map: PathfindingMap {
-            tiles: vec![
-                Tile {
-                    to_target: Vec2::ZERO,
-                    avoidance: Vec2::ZERO,
-                };
-                map.width * map.height
-            ],
-            ..*map
-        },
-        tiles: vec![
-            TileForUpdate {
-                path: None,
-                visited: false,
-            };
-            map.tiles.len()
-        ],
-        to_visit: VecDeque::new(),
-        index: 0,
-    });
-    next_state.set(PathfindingMapInternalState::NeedUpdate);
-}
-
-fn update_setup(
-    mut data: ResMut<DataForUpdate>,
+    mut map: ResMut<PathfindingMap>,
     target_query: Query<&Transform, With<Base>>,
-    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+    spatial_query: SpatialQuery,
 ) {
-    info!("Setup");
+    // info!("Partial update");
     let base_target_pos = if let Ok(target_transform) = target_query.single() {
         Vec2::new(
             target_transform.translation.x,
@@ -217,43 +146,30 @@ fn update_setup(
         return;
     };
 
-    let Some(base_target_index) = data.map.index(base_target_pos) else {
+    let Some(base_target_index) = map.index(base_target_pos) else {
         warn!("Target is out of bounds for pathfinding map");
         return;
     };
 
-    for tile in data.map.tiles.iter_mut() {
-        *tile = Tile {
-            to_target: Vec2::ZERO,
-            avoidance: Vec2::ZERO,
-        };
+    for tile in map.tiles.iter_mut() {
+        *tile = Tile::default();
     }
 
-    data.to_visit.push_back(base_target_index);
-    data.tiles[base_target_index] = TileForUpdate {
-        path: None,
-        visited: true,
-    };
+    let mut to_visit = VecDeque::new();
+    to_visit.push_back(base_target_index);
+    map.tiles[base_target_index].visited = true;
 
-    next_state.set(PathfindingMapInternalState::Floodfill);
-}
-
-fn update_floodfill(
-    mut data: ResMut<DataForUpdate>,
-    spatial_query: SpatialQuery,
-    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
-) {
-    info!("Floodfill");
     let filter = SpatialQueryFilter::from_mask(GameLayer::Building);
 
-    while let Some(current) = data.to_visit.pop_front() {
-        for neighbor_index in data.map.neighbor_indices(current) {
-            if data.tiles[neighbor_index].visited {
+    while let Some(current) = to_visit.pop_front() {
+        let current_pos = map.position(current);
+        for neighbor_index in map.neighbor_indices(current) {
+            if map.tiles[neighbor_index].visited {
                 continue;
             }
-            data.tiles[neighbor_index].visited = true;
+            map.tiles[neighbor_index].visited = true;
 
-            let neighbor_pos = data.map.position(neighbor_index);
+            let neighbor_pos = map.position(neighbor_index);
 
             // When two colliders overlap and a point is inside one but is closer to the edge of the other one (of which it's outside).
             // If solid = false, project_point would return the collider with the closest edge, hense missing the one where the point is inside.
@@ -265,50 +181,61 @@ fn update_floodfill(
                 .unwrap_or(true);
 
             if walkable {
-                data.map.tiles[neighbor_index].avoidance = spatial_query
+                map.tiles[neighbor_index] = Tile {
+                    to_target: current_pos - neighbor_pos,
+                    avoidance: spatial_query
+                        .project_point(neighbor_pos, false, &filter)
+                        .map(|point_projection| neighbor_pos - point_projection.point)
+                        .unwrap_or(Vec2::ZERO),
+                    path: Some(current),
+                    ..map.tiles[neighbor_index]
+                };
+                map.tiles[neighbor_index].avoidance = spatial_query
                     .project_point(neighbor_pos, false, &filter)
                     .map(|point_projection| neighbor_pos - point_projection.point)
                     .unwrap_or(Vec2::ZERO);
-                data.tiles[neighbor_index].path = Some(current);
-                data.to_visit.push_back(neighbor_index);
+                map.tiles[neighbor_index].path = Some(current);
+                to_visit.push_back(neighbor_index);
             }
         }
     }
 
-    next_state.set(PathfindingMapInternalState::FinalPass);
+    commands.trigger(UpdateDebugSpriteEvent);
 }
 
-fn update_final_pass(
-    mut data: ResMut<DataForUpdate>,
+fn on_update(
+    _: On<UpdatePathfindingMapEvent>,
+    mut commands: Commands,
+    mut map: ResMut<PathfindingMap>,
     spatial_query: SpatialQuery,
-    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
+    mut previous_index: Local<usize>,
 ) {
-    info!("final_pass");
     let start_time = Instant::now();
 
     let shape = Collider::from(Circle::new(5.0));
     let mut config = ShapeCastConfig::default();
     let filter = SpatialQueryFilter::from_mask(GameLayer::Building);
 
-    for start in data.index..data.tiles.len() {
+    for start in *previous_index..map.tiles.len() {
         // Stop after some time to continue on the next frame.
-        if Instant::now() - start_time > Duration::from_millis(30) {
-            data.index = start;
+        // TODO: make this function a system so it can divide work accross frames.
+        if Instant::now() - start_time > Duration::from_millis(10000) {
+            *previous_index = start;
             return;
         }
 
         // Trace back from start to target to get the full path.
         // Skip start as it is not needed (and it avoid a zero vector later).
         let full_path: Vec<usize> = successors(Some(start), |index| {
-            data.tiles.get(*index).and_then(|tile| tile.path)
+            map.tiles.get(*index).and_then(|tile| tile.path)
         })
         .skip(1)
         .collect();
 
-        let current_pos = data.map.position(start);
+        let current_pos = map.position(start);
         // Follow the path in reverse and find the first tile that have a direct line of sight with the start tile.
         let to_target = full_path.into_iter().rev().find_map(|i| {
-            let target_pos = data.map.position(i);
+            let target_pos = map.position(i);
             let to_target = target_pos - current_pos;
 
             config.max_distance = to_target.length();
@@ -330,27 +257,21 @@ fn update_final_pass(
         });
 
         if let Some(to_target) = to_target {
-            data.map.tiles[start].to_target = to_target.normalize_or_zero();
+            map.tiles[start].to_target = to_target.normalize_or_zero();
         }
     }
 
-    next_state.set(PathfindingMapInternalState::Copy);
-}
+    // info!("Update ({}ms)", (Instant::now() - start_time).as_millis());
 
-fn update_copy(
-    mut commands: Commands,
-    data: ResMut<DataForUpdate>,
-    mut map: ResMut<PathfindingMap>,
-    mut next_state: ResMut<NextState<PathfindingMapInternalState>>,
-) {
-    info!("copy");
-    *map = data.map.clone();
-    next_state.set(PathfindingMapInternalState::Valid);
-    commands.remove_resource::<DataForUpdate>();
+    *previous_index = 0;
+    commands.trigger(UpdateDebugSpriteEvent);
 }
 
 #[derive(Component)]
 struct PathfindingMapSprite;
+
+#[derive(Event)]
+struct UpdateDebugSpriteEvent;
 
 fn create_debug_sprite(
     mut commands: Commands,
@@ -409,12 +330,13 @@ fn show_debug_sprite(
     }
 }
 
-fn update_debug_sprite(
+fn on_update_debug_sprite(
+    _: On<UpdateDebugSpriteEvent>,
     map: ResMut<PathfindingMap>,
     mut sprite_query: Query<&mut Sprite, With<PathfindingMapSprite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    info!("update_debug_sprite");
+    // info!("update_debug_sprite");
     let Ok(Some(mut image)) = sprite_query
         .single_mut()
         .map(|sprite| images.get_mut(&sprite.image))

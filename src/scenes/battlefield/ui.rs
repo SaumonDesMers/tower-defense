@@ -16,6 +16,7 @@ use crate::scenes::battlefield::BattleFieldSet;
 use crate::scenes::battlefield::currency::{self, Currency};
 use crate::scenes::battlefield::map_validity::MapValidity;
 use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
+use crate::scenes::battlefield::pathfinding::PartialUpdatePathfindingMapEvent;
 use crate::scenes::battlefield::tower::{BuyTowerEvent, TowerGlobalData};
 use crate::scenes::battlefield::wave::WavePhase;
 use crate::ui::EnableButtonEvent;
@@ -93,7 +94,7 @@ pub fn ui() -> impl Bundle {
                 button("Buy tower"),
                 observe(|_: On<Activate>, mut commands: Commands| {
                     commands.trigger(BuyTowerEvent);
-                    commands.trigger(UpdatePathfindingMapEvent);
+                    commands.trigger(PartialUpdatePathfindingMapEvent);
                 })
             ),
             (
@@ -101,7 +102,7 @@ pub fn ui() -> impl Bundle {
                 button("Buy obstacle"),
                 observe(|_: On<Activate>, mut commands: Commands| {
                     commands.trigger(BuyObstacleEvent);
-                    commands.trigger(UpdatePathfindingMapEvent);
+                    commands.trigger(PartialUpdatePathfindingMapEvent);
                 })
             ),
             (

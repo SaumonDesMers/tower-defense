@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::scenes::battlefield::{pathfinding::UpdatePathfindingMapEvent, wave::WavePhase};
+use crate::scenes::battlefield::{pathfinding::PartialUpdatePathfindingMapEvent, wave::WavePhase};
 
 pub struct BuildingsPlugin;
 
@@ -40,6 +40,6 @@ fn on_drag_end(
     building_query: Query<(), With<Building>>,
 ) {
     if building_query.contains(drag.entity) {
-        commands.trigger(UpdatePathfindingMapEvent);
+        commands.trigger(PartialUpdatePathfindingMapEvent);
     }
 }
