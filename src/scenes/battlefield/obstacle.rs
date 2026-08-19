@@ -33,7 +33,7 @@ fn buy_obstacle(
 ) {
     if currency.coin >= obstacle_data.price {
         currency.coin -= obstacle_data.price;
-        obstacle_data.price *= 0.5;
+        obstacle_data.price *= 1.5;
         commands.spawn(obstacle(&ressources_handler));
     }
 }
@@ -52,5 +52,6 @@ pub fn obstacle(ressources_handler: &RessourcesHandler) -> impl Bundle {
         RigidBody::Kinematic,
         Building,
         Selectable,
+        Name("Obstacle".into()),
     )
 }

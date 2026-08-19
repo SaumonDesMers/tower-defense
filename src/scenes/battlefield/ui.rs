@@ -26,7 +26,7 @@ impl Plugin for UiPlugin {
     }
 }
 
-pub fn new_ui() -> impl Bundle {
+pub fn ui() -> impl Bundle {
     (
         Node {
             width: percent(100),
@@ -36,6 +36,7 @@ pub fn new_ui() -> impl Bundle {
             flex_direction: FlexDirection::Column,
             ..default()
         },
+        Pickable::IGNORE,
         children![
             (
                 // Top Bar
@@ -47,6 +48,7 @@ pub fn new_ui() -> impl Bundle {
                     justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
+                Pickable::IGNORE,
                 children![currency_display(), main_menu_button()]
             ),
             (
@@ -58,20 +60,11 @@ pub fn new_ui() -> impl Bundle {
                     justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
+                Pickable::IGNORE,
                 children![
                     shop(),
-                    // (
-                    //     // Shop
-                    //     Node {
-                    //         width: px(400),
-                    //         height: percent(100),
-                    //         display: Display::Flex,
-                    //         flex_direction: FlexDirection::Row,
-                    //         ..default()
-                    //     },
-                    //     children![shop()]
-                    // ),
                     (
+                        // Powers bar
                         Node {
                             width: percent(100),
                             height: px(100),
@@ -80,7 +73,7 @@ pub fn new_ui() -> impl Bundle {
                             flex_direction: FlexDirection::Row,
                             ..default()
                         },
-                        BackgroundColor(tailwind::PINK_600.into()),
+                        Pickable::IGNORE,
                     ),
                     (
                         Node {
@@ -90,6 +83,7 @@ pub fn new_ui() -> impl Bundle {
                             flex_direction: FlexDirection::Column,
                             ..default()
                         },
+                        Pickable::IGNORE,
                         children![
                             (
                                 // Inspector
@@ -99,6 +93,7 @@ pub fn new_ui() -> impl Bundle {
                                     display: Display::Flex,
                                     ..default()
                                 },
+                                Pickable::IGNORE,
                                 children![inspector_window()]
                             ),
                             next_wave_button()

@@ -1,6 +1,8 @@
 use avian2d::prelude::*;
 use bevy::{color::palettes::tailwind, prelude::*};
 
+mod attack_range;
+mod attack_speed;
 mod base;
 mod buildings;
 mod click_attack;
@@ -19,7 +21,10 @@ mod tower;
 mod ui;
 mod wave;
 
+use crate::scenes::battlefield::attack_range::AttackRangePlugin;
+use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
+use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::wave::WaveSpawnerZone;
 use crate::scenes::{
     AppState,
@@ -65,7 +70,7 @@ impl Plugin for BattleFieldPlugin {
             CurrencyPlugin,
             ClickAttackPlugin,
         ))
-        .add_plugins(MapValidityPlugin)
+        .add_plugins((MapValidityPlugin, AttackRangePlugin))
         .add_systems(OnEnter(AppState::InGame), setup)
         .add_systems(OnExit(AppState::InGame), cleanup)
         .configure_sets(Update, BattleFieldSet.run_if(in_state(AppState::InGame)));
@@ -103,8 +108,11 @@ fn setup(
         Transform::from_translation(BASE_POSITION.extend(1.0)),
         Mesh2d(meshes.add(Circle::new(30.0))),
         MeshMaterial2d(materials.add(Color::from(tailwind::STONE_600))),
-        Base { life: 50000 },
+        Base,
+        Health::new(100),
         Collider::circle(30.0),
+        Selectable,
+        Name("Castle".into()),
     ));
 
     // Wave Spawner
@@ -118,9 +126,13 @@ fn setup(
     ));
 
     // UI
-    commands.spawn((DespawnOnExit(AppState::InGame), ui::new_ui()));
+    commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
 
-    commands.insert_resource(Currency { coin: 0.0, xp: 0.0 });
+    commands.insert_resource(Currency {
+        coin: 10000.0,
+        xp: 10000.0,
+    });
+    commands.insert_resource(Selection { entity: None });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
         Vec2::new(-1000.0, -500.0),
@@ -136,13 +148,14 @@ fn setup(
     commands.insert_resource(ObstacleGlobalData { price: 10.0 });
     commands.insert_resource(ClickAttackGlobalData {
         damage: Damage::new(1),
-        mesh: meshes.add(Circle::new(20.0)),
+        mesh: meshes.add(Circle::new(100.0)),
     });
 }
 
 fn cleanup(mut commands: Commands) {
     info!("Cleaning up battlefield...");
     commands.remove_resource::<Currency>();
+    commands.remove_resource::<Selection>();
     commands.remove_resource::<MapValidity>();
     commands.remove_resource::<PathfindingMap>();
     commands.remove_resource::<WaveGlobalData>();

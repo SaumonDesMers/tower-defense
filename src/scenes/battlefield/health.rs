@@ -12,8 +12,8 @@ impl Plugin for HealthPlugin {
 
 #[derive(Component, Clone)]
 pub struct Health {
-    current: i32,
-    max: i32,
+    pub current: i32,
+    pub max: i32,
 }
 
 impl Health {
@@ -38,7 +38,7 @@ pub struct KilledEvent {
     pub entity: Entity,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct Damage {
     pub amount: i32,
 }

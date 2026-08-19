@@ -12,6 +12,8 @@ use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
+use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
+use crate::scenes::battlefield::attack_speed::AttackSpeed;
 use crate::scenes::battlefield::currency::Currency;
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
 use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
@@ -26,19 +28,7 @@ impl Plugin for TowerPlugin {
 }
 
 #[derive(Component)]
-pub struct Tower {
-    pub attack_timer: Timer,
-    pub damage: Damage,
-}
-
-impl Tower {
-    pub fn new(attack_duration: Duration, damage: Damage) -> Self {
-        Self {
-            attack_timer: Timer::from_seconds(attack_duration.as_secs_f32(), TimerMode::Once),
-            damage,
-        }
-    }
-}
+pub struct Tower;
 
 #[derive(Resource)]
 pub struct TowerGlobalData {
@@ -47,20 +37,6 @@ pub struct TowerGlobalData {
 
 #[derive(Event)]
 pub struct BuyTowerEvent;
-
-fn buy_tower(
-    _: On<BuyTowerEvent>,
-    mut commands: Commands,
-    ressources_handler: Res<RessourcesHandler>,
-    mut currency: ResMut<Currency>,
-    mut tower_data: ResMut<TowerGlobalData>,
-) {
-    if currency.coin >= tower_data.price {
-        currency.coin -= tower_data.price;
-        tower_data.price *= 0.5;
-        commands.spawn(tower(&ressources_handler));
-    }
-}
 
 pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
     (
@@ -74,38 +50,55 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
             GameLayer::Default,
         ),
         RigidBody::Kinematic,
-        Health::new(100),
         Building,
         Selectable,
-        children![(
-            Transform::default(),
-            Tower::new(Duration::from_secs_f32(0.8), Damage::new(5)),
-            Collider::circle(200.0),
-            Sensor,
-            Mesh2d(ressources_handler.tower_range_mesh.clone()),
-            MeshMaterial2d(ressources_handler.tower_range_material.clone()),
-        )],
+        Name("Tower".into()),
+        Tower,
+        Damage::new(5),
+        AttackSpeed::new(1.0),
+        AttackRange::new(AttackRangeType::Circle(200.0)),
+        // children![(
+        //     Transform::default(),
+        //     Collider::circle(200.0),
+        //     Sensor,
+        //     Mesh2d(ressources_handler.tower_range_mesh.clone()),
+        //     MeshMaterial2d(ressources_handler.tower_range_material.clone()),
+        //     Pickable::IGNORE,
+        // )],
     )
 }
 
 fn tower_system(
     mut commands: Commands,
-    mut tower_query: Query<(Entity, &mut Tower, &GlobalTransform), With<Collider>>,
+    mut tower_query: Query<
+        (
+            Entity,
+            &Damage,
+            &mut AttackSpeed,
+            &AttackRange,
+            &GlobalTransform,
+        ),
+        With<Tower>,
+    >,
     target_query: Query<(Entity, &GlobalTransform), (With<Collider>, With<Enemy>)>,
     collisions: Collisions,
     time: Res<Time>,
     ressources_handler: Res<RessourcesHandler>,
 ) {
-    for (tower_entity, mut tower, tower_transform) in tower_query.iter_mut() {
-        tower.attack_timer.tick(time.delta());
-        if !tower.attack_timer.is_finished() {
+    for (tower_entity, damage, mut attack_speed, attack_range, tower_transform) in
+        tower_query.iter_mut()
+    {
+        attack_speed.timer.tick(time.delta());
+        if !attack_speed.timer.is_finished() {
             continue;
         }
-        tower.attack_timer.reset();
+        attack_speed.timer.reset();
 
         if let Some((target_entity, _target_transform)) = target_query
             .iter()
-            .filter(|(entity, _target_transform)| collisions.contains(tower_entity, *entity))
+            .filter(|(entity, _target_transform)| {
+                collisions.contains(attack_range.collider_entity, *entity)
+            })
             .min_by_key(|(_entity, target_transform)| {
                 tower_transform
                     .translation()
@@ -120,7 +113,7 @@ fn tower_system(
                     Collider::circle(2.0),
                     Sensor,
                     RigidBody::Kinematic,
-                    Projectile::new(target_entity, 500.0, tower.damage),
+                    Projectile::new(target_entity, 500.0, *damage),
                 ))
                 .id();
 
@@ -130,5 +123,19 @@ fn tower_system(
                 target_entity,
             });
         }
+    }
+}
+
+fn buy_tower(
+    _: On<BuyTowerEvent>,
+    mut commands: Commands,
+    ressources_handler: Res<RessourcesHandler>,
+    mut currency: ResMut<Currency>,
+    mut tower_data: ResMut<TowerGlobalData>,
+) {
+    if currency.coin >= tower_data.price {
+        currency.coin -= tower_data.price;
+        tower_data.price *= 1.5;
+        commands.spawn(tower(&ressources_handler));
     }
 }
