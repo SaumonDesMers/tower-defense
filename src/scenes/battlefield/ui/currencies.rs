@@ -32,7 +32,7 @@ struct CurrencyDisplay;
 pub fn currency_display() -> impl Bundle {
     (
         Node {
-            width: px(100),
+            width: px(300),
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
             display: Display::Flex,
@@ -54,6 +54,9 @@ fn update_currency_display(
     mut display: Query<&mut Text, With<CurrencyDisplay>>,
 ) {
     if let Ok(mut text) = display.single_mut() {
-        **text = format!("Coin: {}", currency.coin as u32);
+        **text = format!(
+            "Coin: {}    Xp: {}",
+            currency.coin as u32, currency.xp as u32
+        );
     }
 }

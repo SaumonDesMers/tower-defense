@@ -120,7 +120,7 @@ fn setup(
     // UI
     commands.spawn((DespawnOnExit(AppState::InGame), ui::new_ui()));
 
-    commands.insert_resource(Currency { coin: 0.0 });
+    commands.insert_resource(Currency { coin: 0.0, xp: 0.0 });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
         Vec2::new(-1000.0, -500.0),

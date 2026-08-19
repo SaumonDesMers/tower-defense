@@ -13,17 +13,22 @@ impl Plugin for CurrencyPlugin {
 #[derive(Resource, Clone, Copy)]
 pub struct Currency {
     pub coin: f32,
+    pub xp: f32,
 }
 
 #[derive(Component, Clone, Copy)]
-pub struct DropCoin(pub f32);
+pub struct DropCurrency {
+    pub coin: f32,
+    pub xp: f32,
+}
 
 fn on_drop_coin_despawn(
     event: On<KilledEvent>,
-    query: Query<&DropCoin>,
+    query: Query<&DropCurrency>,
     mut currency: ResMut<Currency>,
 ) {
     if let Ok(dropped_cooin) = query.get(event.entity) {
-        currency.coin += dropped_cooin.0;
+        currency.coin += dropped_cooin.coin;
+        currency.xp += dropped_cooin.xp;
     }
 }
