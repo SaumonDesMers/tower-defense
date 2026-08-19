@@ -1,8 +1,5 @@
 use bevy::color::palettes::tailwind;
-use bevy::input_focus::InputFocus;
-use bevy::log::tracing_subscriber::field::debug;
 use bevy::prelude::*;
-use bevy::ui::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;

@@ -9,7 +9,6 @@ use super::spawner::{Spawnable, Spawner};
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
 use crate::scenes::battlefield::currency::DropCoin;
-use crate::scenes::battlefield::wave;
 
 pub struct WavePlugin;
 
@@ -85,7 +84,7 @@ fn start_wave(
                 Enemy,
                 EnemyAI { speed: 100.0 },
                 Health::new(5),
-                DropCoin(1),
+                DropCoin(1.0),
             )),
         ),
         Lifetime::new(std::time::Duration::from_secs_f32(total_time)),

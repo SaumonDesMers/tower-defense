@@ -1,16 +1,18 @@
+use std::time::Duration;
+
 use bevy::color::palettes::tailwind;
 use bevy::ecs::system::command;
 use bevy::prelude::*;
 use bevy::ui::prelude::*;
 use bevy::ui_widgets::Activate;
+use bevy::window::WindowResized;
 
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, button_system)
+        app.add_systems(Update, (button_system, change_scaling))
             .add_observer(on_button_enable);
-        // .add_observer(on_button_disable);
     }
 }
 
@@ -131,18 +133,9 @@ fn on_button_enable(
     }
 }
 
-// fn on_button_enable(
-//     event: On<Remove, ButtonDisabled>,
-//     mut button_query: Query<(
-//         &mut BackgroundColor,
-//         &mut BorderColor,
-//         &Children,
-//         Option<&ButtonColors>,
-//     )>,
-//     mut text_query: Query<&mut TextColor>,
-// ) {
-//     let (mut background, mut border, children, colors) = button_query
-//         .get_mut(event.entity)
-//         .expect("Entity stored by event should be valid.");
-//     let colors = colors.copied().unwrap_or_default();
-// }
+fn change_scaling(mut resize_reader: MessageReader<WindowResized>, mut ui_scale: ResMut<UiScale>) {
+    let target_width = 1920.0;
+    for event in resize_reader.read() {
+        ui_scale.0 = event.width / target_width;
+    }
+}

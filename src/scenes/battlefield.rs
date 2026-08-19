@@ -1,5 +1,4 @@
 use avian2d::prelude::*;
-use bevy::ui::prelude::*;
 use bevy::{color::palettes::tailwind, prelude::*};
 
 mod base;
@@ -35,15 +34,14 @@ use crate::scenes::{
 };
 
 use base::{BASE_POSITION, Base, BasePlugin};
-use buildings::{Building, BuildingsPlugin};
-use enemy::{Enemy, EnemyAI, EnemyPlugin};
-use health::{Damage, Health, HealthPlugin};
+use buildings::BuildingsPlugin;
+use enemy::EnemyPlugin;
+use health::{Damage, HealthPlugin};
 use pathfinding::PathfindingPlugin;
-use physic::GameLayer;
-use projectile::{Projectile, ProjectileHitEvent, ProjectilePlugin};
-use selection::{Selectable, SelectionPlugin};
-use spawner::{Spawnable, Spawner, SpawnerPlugin};
-use tower::{Tower, TowerPlugin, tower};
+use projectile::ProjectilePlugin;
+use selection::SelectionPlugin;
+use spawner::SpawnerPlugin;
+use tower::TowerPlugin;
 use wave::WavePlugin;
 
 pub struct BattleFieldPlugin;
@@ -120,9 +118,9 @@ fn setup(
     ));
 
     // UI
-    commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
+    commands.spawn((DespawnOnExit(AppState::InGame), ui::new_ui()));
 
-    commands.insert_resource(Currency { coin: 10000 });
+    commands.insert_resource(Currency { coin: 0.0 });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
         Vec2::new(-1000.0, -500.0),
@@ -132,13 +130,13 @@ fn setup(
     ));
     commands.insert_resource(WaveGlobalData {
         count: 1,
-        delay: 0.5,
+        delay: 1.0,
     });
-    commands.insert_resource(TowerGlobalData { price: 10 });
-    commands.insert_resource(ObstacleGlobalData { price: 10 });
+    commands.insert_resource(TowerGlobalData { price: 10.0 });
+    commands.insert_resource(ObstacleGlobalData { price: 10.0 });
     commands.insert_resource(ClickAttackGlobalData {
-        damage: Damage::new(10),
-        mesh: meshes.add(Circle::new(100.0)),
+        damage: Damage::new(1),
+        mesh: meshes.add(Circle::new(20.0)),
     });
 }
 

@@ -18,7 +18,7 @@ impl Plugin for ObstaclePlugin {
 
 #[derive(Resource)]
 pub struct ObstacleGlobalData {
-    pub price: u32,
+    pub price: f32,
 }
 
 #[derive(Event)]
@@ -33,7 +33,7 @@ fn buy_obstacle(
 ) {
     if currency.coin >= obstacle_data.price {
         currency.coin -= obstacle_data.price;
-        obstacle_data.price += (obstacle_data.price as f32 * 0.5) as u32;
+        obstacle_data.price *= 0.5;
         commands.spawn(obstacle(&ressources_handler));
     }
 }

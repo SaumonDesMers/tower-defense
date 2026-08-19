@@ -12,11 +12,11 @@ impl Plugin for CurrencyPlugin {
 
 #[derive(Resource, Clone, Copy)]
 pub struct Currency {
-    pub coin: u32,
+    pub coin: f32,
 }
 
 #[derive(Component, Clone, Copy)]
-pub struct DropCoin(pub u32);
+pub struct DropCoin(pub f32);
 
 fn on_drop_coin_despawn(
     event: On<KilledEvent>,

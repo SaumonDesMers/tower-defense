@@ -7,7 +7,7 @@ use super::buildings::Building;
 use super::enemy::Enemy;
 use super::health::{Damage, Health};
 use super::physic::GameLayer;
-use super::projectile::{Projectile, ProjectileHitEvent};
+use super::projectile::Projectile;
 use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
@@ -42,7 +42,7 @@ impl Tower {
 
 #[derive(Resource)]
 pub struct TowerGlobalData {
-    pub price: u32,
+    pub price: f32,
 }
 
 #[derive(Event)]
@@ -57,7 +57,7 @@ fn buy_tower(
 ) {
     if currency.coin >= tower_data.price {
         currency.coin -= tower_data.price;
-        tower_data.price += (tower_data.price as f32 * 0.5) as u32;
+        tower_data.price *= 0.5;
         commands.spawn(tower(&ressources_handler));
     }
 }
@@ -81,9 +81,9 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
             Transform::default(),
             Tower::new(Duration::from_secs_f32(0.8), Damage::new(5)),
             Collider::circle(200.0),
+            Sensor,
             Mesh2d(ressources_handler.tower_range_mesh.clone()),
             MeshMaterial2d(ressources_handler.tower_range_material.clone()),
-            SendProjectileWithRicochet,
         )],
     )
 }

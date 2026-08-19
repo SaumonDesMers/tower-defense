@@ -1,7 +1,4 @@
-use avian2d::parry::query;
-use bevy::{ecs::observer, prelude::*};
-
-use super::selection;
+use bevy::prelude::*;
 
 pub struct SelectionPlugin;
 

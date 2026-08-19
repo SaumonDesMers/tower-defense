@@ -1,8 +1,5 @@
 use bevy::color::palettes::tailwind;
-use bevy::input_focus::InputFocus;
-use bevy::log::tracing_subscriber::field::debug;
 use bevy::prelude::*;
-use bevy::ui::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;
@@ -38,8 +35,7 @@ fn setup_menu(mut commands: Commands) {
             (
                 button("Start Game"),
                 observe(
-                    |_activate: On<Activate>,
-                     mut scene_next_state: ResMut<NextState<AppState>>| {
+                    |_activate: On<Activate>, mut scene_next_state: ResMut<NextState<AppState>>| {
                         info!("Start Game button clicked!");
                         scene_next_state.set(AppState::InGame);
                     }
