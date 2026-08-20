@@ -19,12 +19,14 @@ mod selection;
 mod spawner;
 mod tower;
 mod ui;
+mod upgrade;
 mod wave;
 
 use crate::scenes::battlefield::attack_range::AttackRangePlugin;
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
+use crate::scenes::battlefield::upgrade::{UpgradePlugin, upgrade_menu};
 use crate::scenes::battlefield::wave::WaveSpawnerZone;
 use crate::scenes::{
     AppState,
@@ -70,7 +72,7 @@ impl Plugin for BattleFieldPlugin {
             CurrencyPlugin,
             ClickAttackPlugin,
         ))
-        .add_plugins((MapValidityPlugin, AttackRangePlugin))
+        .add_plugins((MapValidityPlugin, AttackRangePlugin, UpgradePlugin))
         .add_systems(OnEnter(AppState::InGame), setup)
         .add_systems(OnExit(AppState::InGame), cleanup)
         .configure_sets(Update, BattleFieldSet.run_if(in_state(AppState::InGame)));
@@ -127,6 +129,7 @@ fn setup(
 
     // UI
     commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
+    commands.spawn((DespawnOnExit(AppState::InGame), upgrade_menu()));
 
     commands.insert_resource(Currency {
         coin: 10000.0,

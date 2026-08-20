@@ -1,12 +1,15 @@
 use bevy::ui::prelude::*;
+use bevy::ui_widgets::{Activate, observe};
 use bevy::{color::palettes::tailwind, prelude::*};
 
+use crate::scenes::AppState;
 use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
 use crate::scenes::battlefield::attack_speed::{self, AttackSpeed};
 use crate::scenes::battlefield::base::Base;
 use crate::scenes::battlefield::health::{Damage, Health};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::ui::inspector;
+use crate::scenes::battlefield::upgrade::UpgradeEvent;
 
 pub struct InspectorPlugin;
 
@@ -40,16 +43,50 @@ pub fn inspector_window() -> impl Bundle {
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
-            row_gap: px(10),
+            row_gap: px(50),
             ..default()
         },
         BackgroundColor(tailwind::INDIGO_900.into()),
         Inspector,
         Visibility::Inherited,
-        children![(
-            Text::new("Inspector"),
-            TextColor(tailwind::SLATE_200.into()),
-        )],
+        children![
+            (
+                Text::new("Inspector"),
+                TextColor(tailwind::SLATE_200.into()),
+            ),
+            (
+                Button,
+                Node {
+                    // width: px(200),
+                    margin: UiRect {
+                        right: px(10),
+                        top: px(10),
+                        ..UiRect::default()
+                    },
+                    border_radius: BorderRadius::all(px(10)),
+
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    padding: UiRect {
+                        left: px(15),
+                        right: px(15),
+                        top: px(15),
+                        bottom: px(15),
+                    },
+                    ..default()
+                },
+                children![(Text::new("Upgrade"), TextColor(tailwind::SLATE_200.into()),)],
+                observe(
+                    |_: On<Activate>, mut commands: Commands, selection: Res<Selection>| {
+                        commands.trigger(UpgradeEvent {
+                            entity: selection.entity.expect("Entity should exist"),
+                        });
+                    },
+                ),
+            )
+        ],
     )
 }
 
