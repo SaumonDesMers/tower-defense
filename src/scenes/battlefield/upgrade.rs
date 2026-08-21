@@ -1,3 +1,6 @@
+use std::marker::PhantomData;
+use std::sync::Arc;
+
 use bevy::ui::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 use bevy::{color::palettes::tailwind, prelude::*};
@@ -11,8 +14,30 @@ impl Plugin for UpgradePlugin {
 }
 
 #[derive(EntityEvent)]
-pub struct UpgradeEvent {
+pub struct OpenUpgradeMenuEvent {
     pub entity: Entity,
+}
+
+#[derive(Component)]
+pub struct PossibleUpgrades {
+    upgrades: Vec<Arc<dyn UpgradeEvent>>,
+}
+
+impl PossibleUpgrades {
+    pub fn new(upgrades: Vec<impl UpgradeEvent>) -> Self {
+        Self {
+            upgrades: upgrades
+                .into_iter()
+                .map(|upgrade| Arc::new(upgrade) as Arc<dyn UpgradeEvent>)
+                .collect(),
+        }
+    }
+}
+
+pub trait UpgradeEvent: Send + Sync + 'static {
+    fn trigger(&self, commands: &mut Commands, entity: Entity);
+
+    fn name(&self) -> String;
 }
 
 #[derive(Component)]
@@ -52,32 +77,6 @@ pub fn upgrade_menu() -> impl Bundle {
                 ..default()
             },
             BackgroundColor(Color::from(tailwind::INDIGO_900)),
-            children![
-                (
-                    upgrade_button(),
-                    children![(
-                        Text::new("Upgrade 1"),
-                        TextColor(tailwind::SLATE_200.into()),
-                    )],
-                    observe(|_: On<Activate>| {},),
-                ),
-                (
-                    upgrade_button(),
-                    children![(
-                        Text::new("Upgrade 2"),
-                        TextColor(tailwind::SLATE_200.into()),
-                    )],
-                    observe(|_: On<Activate>| {},),
-                ),
-                (
-                    upgrade_button(),
-                    children![(
-                        Text::new("Upgrade 3"),
-                        TextColor(tailwind::SLATE_200.into()),
-                    )],
-                    observe(|_: On<Activate>| {},),
-                )
-            ]
         )],
     )
 }
@@ -105,11 +104,53 @@ fn upgrade_button() -> impl Bundle {
 }
 
 fn on_upgrade(
-    _: On<UpgradeEvent>,
-    mut upgrade_menu_visibility: Query<&mut Visibility, With<UpgradeMenuTag>>,
+    event: On<OpenUpgradeMenuEvent>,
+    mut commands: Commands,
+    mut upgrade_menu_visibility: Query<(&mut Visibility, &Children), With<UpgradeMenuTag>>,
+    possible_upgrades_q: Query<&PossibleUpgrades>,
 ) {
-    let mut visibility = upgrade_menu_visibility
+    let Ok(possible_upgrades) = possible_upgrades_q.get(event.entity) else {
+        warn!("You tried to upgrade an entity that doesn't any possible upgrade");
+        return;
+    };
+
+    let (mut visibility, children) = upgrade_menu_visibility
         .single_mut()
         .expect("Upgrade menu should exist");
+
+    let upgrades = possible_upgrades
+        .upgrades
+        .iter()
+        .map(|upgrade| upgrade.clone());
+    commands
+        .entity(children[0])
+        .despawn_children()
+        .with_children(|parent| {
+            for upgrade in upgrades {
+                let entity = event.entity;
+                parent.spawn((
+                    upgrade_button(),
+                    children![(
+                        Text::new(upgrade.name()),
+                        TextColor(tailwind::SLATE_200.into()),
+                    )],
+                    observe(
+                        move |_: On<Activate>,
+                              mut commands: Commands,
+                              mut upgrade_menu_visibility: Query<
+                            &mut Visibility,
+                            With<UpgradeMenuTag>,
+                        >| {
+                            upgrade.trigger(&mut commands, entity);
+                            let mut visibility = upgrade_menu_visibility
+                                .single_mut()
+                                .expect("Upgrade menu should exist");
+                            *visibility = Visibility::Hidden;
+                        },
+                    ),
+                ));
+            }
+        });
+
     *visibility = Visibility::Inherited;
 }

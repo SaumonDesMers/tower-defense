@@ -9,7 +9,7 @@ use crate::scenes::battlefield::base::Base;
 use crate::scenes::battlefield::health::{Damage, Health};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::ui::inspector;
-use crate::scenes::battlefield::upgrade::UpgradeEvent;
+use crate::scenes::battlefield::upgrade::OpenUpgradeMenuEvent;
 
 pub struct InspectorPlugin;
 
@@ -80,8 +80,10 @@ pub fn inspector_window() -> impl Bundle {
                 children![(Text::new("Upgrade"), TextColor(tailwind::SLATE_200.into()),)],
                 observe(
                     |_: On<Activate>, mut commands: Commands, selection: Res<Selection>| {
-                        commands.trigger(UpgradeEvent {
-                            entity: selection.entity.expect("Entity should exist"),
+                        commands.trigger(OpenUpgradeMenuEvent {
+                            entity: selection
+                                .entity
+                                .expect("Entity should exist when upgrading them"),
                         });
                     },
                 ),

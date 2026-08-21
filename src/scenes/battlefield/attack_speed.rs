@@ -1,6 +1,16 @@
-use std::time::Duration;
+use std::{marker::PhantomData, time::Duration};
 
 use bevy::prelude::*;
+
+use crate::scenes::battlefield::upgrade::UpgradeEvent;
+
+pub struct AttackSpeedPlugin;
+
+impl Plugin for AttackSpeedPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_observer(on_attack_speed_upgrade);
+    }
+}
 
 #[derive(Component)]
 pub struct AttackSpeed {
@@ -16,5 +26,37 @@ impl AttackSpeed {
 
     pub fn per_second(&self) -> f32 {
         1.0 / self.timer.duration().as_secs_f32()
+    }
+}
+
+#[derive(EntityEvent, Clone)]
+pub struct AttackSpeedUpgrade {
+    entity: Entity,
+}
+
+impl AttackSpeedUpgrade {
+    pub fn new() -> Self {
+        Self {
+            entity: Entity::PLACEHOLDER,
+        }
+    }
+}
+
+impl UpgradeEvent for AttackSpeedUpgrade {
+    fn trigger(&self, commands: &mut Commands, entity: Entity) {
+        commands.trigger(Self { entity, ..*self });
+    }
+
+    fn name(&self) -> String {
+        String::from("Attack speed: +10%")
+    }
+}
+
+fn on_attack_speed_upgrade(
+    _event: On<AttackSpeedUpgrade, AttackSpeed>,
+    mut attack_speed_q: Query<&mut AttackSpeed>,
+) {
+    if let Ok(mut attack_speed) = attack_speed_q.get_mut(_event.entity) {
+        *attack_speed = AttackSpeed::new(attack_speed.per_second() * 1.1);
     }
 }

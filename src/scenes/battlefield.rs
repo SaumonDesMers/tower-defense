@@ -23,6 +23,7 @@ mod upgrade;
 mod wave;
 
 use crate::scenes::battlefield::attack_range::AttackRangePlugin;
+use crate::scenes::battlefield::attack_speed::AttackSpeedPlugin;
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
@@ -72,7 +73,12 @@ impl Plugin for BattleFieldPlugin {
             CurrencyPlugin,
             ClickAttackPlugin,
         ))
-        .add_plugins((MapValidityPlugin, AttackRangePlugin, UpgradePlugin))
+        .add_plugins((
+            MapValidityPlugin,
+            AttackRangePlugin,
+            UpgradePlugin,
+            AttackSpeedPlugin,
+        ))
         .add_systems(OnEnter(AppState::InGame), setup)
         .add_systems(OnExit(AppState::InGame), cleanup)
         .configure_sets(Update, BattleFieldSet.run_if(in_state(AppState::InGame)));

@@ -13,10 +13,11 @@ use crate::RessourcesHandler;
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
 use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
-use crate::scenes::battlefield::attack_speed::AttackSpeed;
+use crate::scenes::battlefield::attack_speed::{AttackSpeed, AttackSpeedUpgrade};
 use crate::scenes::battlefield::currency::Currency;
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
 use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
+use crate::scenes::battlefield::upgrade::PossibleUpgrades;
 
 pub struct TowerPlugin;
 
@@ -57,14 +58,7 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
         Damage::new(5),
         AttackSpeed::new(1.0),
         AttackRange::new(AttackRangeType::Circle(200.0)),
-        // children![(
-        //     Transform::default(),
-        //     Collider::circle(200.0),
-        //     Sensor,
-        //     Mesh2d(ressources_handler.tower_range_mesh.clone()),
-        //     MeshMaterial2d(ressources_handler.tower_range_material.clone()),
-        //     Pickable::IGNORE,
-        // )],
+        PossibleUpgrades::new(vec![AttackSpeedUpgrade::new()]),
     )
 }
 
