@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::scenes::AppState;
+use crate::scenes::battlefield::ui::UpdateInspector;
 
 pub struct SelectionPlugin;
 
@@ -24,6 +25,7 @@ pub struct Selection {
 
 fn select_entity(
     mut click: On<Pointer<Click>>,
+    mut commands: Commands,
     query: Query<(), With<Selectable>>,
     mut selection: ResMut<Selection>,
 ) {
@@ -38,6 +40,7 @@ fn select_entity(
     } else if selection.entity.is_some() {
         selection.entity = None;
     }
+    commands.trigger(UpdateInspector {});
     click.propagate(false);
 }
 

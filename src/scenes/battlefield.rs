@@ -7,6 +7,7 @@ mod base;
 mod buildings;
 mod click_attack;
 mod currency;
+mod damage;
 mod enemy;
 mod health;
 mod lifetime;
@@ -24,6 +25,7 @@ mod wave;
 
 use crate::scenes::battlefield::attack_range::AttackRangePlugin;
 use crate::scenes::battlefield::attack_speed::AttackSpeedPlugin;
+use crate::scenes::battlefield::damage::{Damage, DamagePlugin};
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
@@ -44,7 +46,7 @@ use crate::scenes::{
 use base::{BASE_POSITION, Base, BasePlugin};
 use buildings::BuildingsPlugin;
 use enemy::EnemyPlugin;
-use health::{Damage, HealthPlugin};
+use health::HealthPlugin;
 use pathfinding::PathfindingPlugin;
 use projectile::ProjectilePlugin;
 use selection::SelectionPlugin;
@@ -78,6 +80,7 @@ impl Plugin for BattleFieldPlugin {
             AttackRangePlugin,
             UpgradePlugin,
             AttackSpeedPlugin,
+            DamagePlugin,
         ))
         .add_systems(OnEnter(AppState::InGame), setup)
         .add_systems(OnExit(AppState::InGame), cleanup)
@@ -117,7 +120,7 @@ fn setup(
         Mesh2d(meshes.add(Circle::new(30.0))),
         MeshMaterial2d(materials.add(Color::from(tailwind::STONE_600))),
         Base,
-        Health::new(100),
+        Health::new(10.0),
         Collider::circle(30.0),
         Selectable,
         Name("Castle".into()),
@@ -137,10 +140,7 @@ fn setup(
     commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
     commands.spawn((DespawnOnExit(AppState::InGame), upgrade_menu()));
 
-    commands.insert_resource(Currency {
-        coin: 10000.0,
-        xp: 10000.0,
-    });
+    commands.insert_resource(Currency { coin: 0.0, xp: 0.0 });
     commands.insert_resource(Selection { entity: None });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
@@ -156,7 +156,7 @@ fn setup(
     commands.insert_resource(TowerGlobalData { price: 10.0 });
     commands.insert_resource(ObstacleGlobalData { price: 10.0 });
     commands.insert_resource(ClickAttackGlobalData {
-        damage: Damage::new(1),
+        damage: Damage::new(10.0),
         mesh: meshes.add(Circle::new(100.0)),
     });
 }

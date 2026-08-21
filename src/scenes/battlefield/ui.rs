@@ -6,6 +6,8 @@ use crate::scenes::battlefield::ui::shop::{ShopPlugin, shop};
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 
+pub use inspector::UpdateInspector;
+
 mod currencies;
 mod inspector;
 mod main_menu;

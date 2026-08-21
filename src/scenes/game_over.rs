@@ -2,6 +2,7 @@ use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
+use crate::Score;
 use crate::scenes::AppState;
 
 pub struct GameOverPlugin;
@@ -16,7 +17,7 @@ impl Plugin for GameOverPlugin {
 #[derive(Component)]
 struct GameOver;
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, mut score: ResMut<Score>) {
     info!("Setting up game over screen...");
     commands.spawn((
         GameOver,
@@ -34,6 +35,15 @@ fn setup(mut commands: Commands) {
         children![
             (
                 Text::new("Game Over"),
+                TextColor(tailwind::SLATE_200.into()),
+            ),
+            (
+                Text::new({
+                    if score.current > score.best {
+                        score.best = score.current;
+                    }
+                    format!("Score: {}   (best: {})", score.current, score.best)
+                }),
                 TextColor(tailwind::SLATE_200.into()),
             ),
             (

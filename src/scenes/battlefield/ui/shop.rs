@@ -25,7 +25,9 @@ impl Plugin for ShopPlugin {
                 update_buy_obstacle_button.run_if(resource_exists_and_changed::<Currency>),
             )
                 .in_set(BattleFieldSet),
-        );
+        )
+        .add_systems(OnEnter(WavePhase::Finished), enable_buttons)
+        .add_systems(OnExit(WavePhase::Finished), disable_buttons);
     }
 }
 
@@ -34,6 +36,9 @@ struct BuyTowerButton;
 
 #[derive(Component)]
 struct BuyObstacleButton;
+
+#[derive(Component)]
+struct ShopButton;
 
 pub fn shop() -> impl Bundle {
     (
@@ -60,6 +65,7 @@ pub fn shop() -> impl Bundle {
         children![
             (
                 BuyTowerButton,
+                ShopButton,
                 button("Buy tower"),
                 observe(|_: On<Activate>, mut commands: Commands| {
                     commands.trigger(BuyTowerEvent);
@@ -68,6 +74,7 @@ pub fn shop() -> impl Bundle {
             ),
             (
                 BuyObstacleButton,
+                ShopButton,
                 button("Buy obstacle"),
                 observe(|_: On<Activate>, mut commands: Commands| {
                     commands.trigger(BuyObstacleEvent);
@@ -148,5 +155,23 @@ fn update_buy_obstacle_button(
                 enable: has_enough_coin,
             });
         }
+    }
+}
+
+fn enable_buttons(mut commands: Commands, button: Query<Entity, With<ShopButton>>) {
+    for entity in button {
+        commands.trigger(EnableButtonEvent {
+            entity,
+            enable: true,
+        });
+    }
+}
+
+fn disable_buttons(mut commands: Commands, button: Query<Entity, With<ShopButton>>) {
+    for entity in button {
+        commands.trigger(EnableButtonEvent {
+            entity,
+            enable: false,
+        });
     }
 }

@@ -3,12 +3,7 @@ use bevy::{prelude::*, sprite_render::AlphaMode2d};
 
 use crate::scenes::{
     AppState,
-    battlefield::{
-        BattleFieldSet,
-        enemy::Enemy,
-        health::{Damage, Health},
-        wave::WavePhase,
-    },
+    battlefield::{BattleFieldSet, damage::Damage, enemy::Enemy, health::Health, wave::WavePhase},
 };
 
 pub struct ClickAttackPlugin;

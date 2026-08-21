@@ -61,7 +61,7 @@ fn start_wave(
         return;
     };
 
-    let enemy_count = wave_data.count * wave_data.count;
+    let enemy_count = wave_data.count * wave_data.count + 10;
     let total_time = (enemy_count as f32 + 0.1) * wave_data.delay;
     info!(
         "start wave with {enemy_count} enemies. One each {}s for {total_time}s.",
@@ -83,7 +83,7 @@ fn start_wave(
                 RigidBody::Dynamic,
                 Enemy,
                 EnemyAI { speed: 100.0 },
-                Health::new(5),
+                Health::new(5.0),
                 DropCurrency { coin: 1.0, xp: 1.0 },
             )),
         ),

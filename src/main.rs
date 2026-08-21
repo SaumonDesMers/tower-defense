@@ -26,16 +26,24 @@ fn main() {
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(RessourcesHandler::default())
+        .insert_resource(Score {
+            best: 0,
+            current: 0,
+        })
         .add_systems(Startup, setup)
         .run();
+}
+
+#[derive(Resource)]
+struct Score {
+    pub best: u32,
+    pub current: u32,
 }
 
 #[derive(Resource, Default)]
 struct RessourcesHandler {
     pub tower_body_mesh: Handle<Mesh>,
     pub tower_body_material: Handle<ColorMaterial>,
-    pub tower_range_mesh: Handle<Mesh>,
-    pub tower_range_material: Handle<ColorMaterial>,
     pub enemy_mesh: Handle<Mesh>,
     pub enemy_material: Handle<ColorMaterial>,
     pub obstacle_mesh: Handle<Mesh>,
@@ -52,9 +60,6 @@ fn setup(
 ) {
     ressources_handler.tower_body_mesh = meshes.add(Circle::new(20.0));
     ressources_handler.tower_body_material = materials.add(Color::from(tailwind::BLUE_800));
-    ressources_handler.tower_range_mesh = meshes.add(Circle::new(200.0));
-    ressources_handler.tower_range_material =
-        materials.add(Color::from(tailwind::BLUE_800).with_alpha(0.1));
     ressources_handler.enemy_mesh = meshes.add(Circle::new(5.0));
     ressources_handler.enemy_material = materials.add(Color::from(tailwind::LIME_900));
     ressources_handler.obstacle_mesh = meshes.add(Rectangle::new(50.0, 200.0));

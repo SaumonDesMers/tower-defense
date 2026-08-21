@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use avian2d::prelude::*;
@@ -5,16 +6,17 @@ use bevy::prelude::*;
 
 use super::buildings::Building;
 use super::enemy::Enemy;
-use super::health::{Damage, Health};
+use super::health::Health;
 use super::physic::GameLayer;
 use super::projectile::Projectile;
 use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
+use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType, AttackRangeUpgrade};
 use crate::scenes::battlefield::attack_speed::{AttackSpeed, AttackSpeedUpgrade};
 use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::damage::{Damage, DamageUpgrade};
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
 use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
 use crate::scenes::battlefield::upgrade::PossibleUpgrades;
@@ -55,10 +57,14 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
         Selectable,
         Name("Tower".into()),
         Tower,
-        Damage::new(5),
+        Damage::new(5.0),
         AttackSpeed::new(1.0),
         AttackRange::new(AttackRangeType::Circle(200.0)),
-        PossibleUpgrades::new(vec![AttackSpeedUpgrade::new()]),
+        PossibleUpgrades::new(vec![
+            Arc::new(AttackSpeedUpgrade::new()),
+            Arc::new(DamageUpgrade::new()),
+            Arc::new(AttackRangeUpgrade::new()),
+        ]),
     )
 }
 

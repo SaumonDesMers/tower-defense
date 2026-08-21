@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::scenes::battlefield::damage::Damage;
+
 pub struct HealthPlugin;
 
 impl Plugin for HealthPlugin {
@@ -12,12 +14,12 @@ impl Plugin for HealthPlugin {
 
 #[derive(Component, Clone)]
 pub struct Health {
-    pub current: i32,
-    pub max: i32,
+    pub current: f32,
+    pub max: f32,
 }
 
 impl Health {
-    pub fn new(max: i32) -> Self {
+    pub fn new(max: f32) -> Self {
         Self { current: max, max }
     }
 
@@ -25,7 +27,7 @@ impl Health {
         self.current -= amount.amount;
     }
 
-    pub fn heal(&mut self, amount: i32) {
+    pub fn heal(&mut self, amount: f32) {
         self.current += amount;
         if self.current > self.max {
             self.current = self.max;
@@ -38,20 +40,9 @@ pub struct KilledEvent {
     pub entity: Entity,
 }
 
-#[derive(Component, Debug, Clone, Copy)]
-pub struct Damage {
-    pub amount: i32,
-}
-
-impl Damage {
-    pub fn new(amount: i32) -> Self {
-        Self { amount }
-    }
-}
-
 fn death(mut commands: Commands, mut query: Query<(Entity, &Health)>) {
     for (entity, health) in query.iter_mut() {
-        if health.current <= 0 {
+        if health.current <= 0.0 {
             commands.trigger(KilledEvent { entity });
             commands.entity(entity).despawn();
         }

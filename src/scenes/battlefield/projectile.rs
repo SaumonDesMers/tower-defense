@@ -5,7 +5,7 @@ pub mod ricochet;
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::scenes::battlefield::health::{Damage, Health};
+use crate::scenes::battlefield::{damage::Damage, health::Health};
 
 pub struct ProjectilePlugin;
 

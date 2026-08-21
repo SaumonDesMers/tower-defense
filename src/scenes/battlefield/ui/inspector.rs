@@ -6,7 +6,8 @@ use crate::scenes::AppState;
 use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
 use crate::scenes::battlefield::attack_speed::{self, AttackSpeed};
 use crate::scenes::battlefield::base::Base;
-use crate::scenes::battlefield::health::{Damage, Health};
+use crate::scenes::battlefield::damage::Damage;
+use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::ui::inspector;
 use crate::scenes::battlefield::upgrade::OpenUpgradeMenuEvent;
@@ -15,15 +16,15 @@ pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            update_inspector.run_if(resource_exists_and_changed::<Selection>),
-        );
+        app.add_observer(update_inspector);
     }
 }
 
 #[derive(Component)]
 struct Inspector;
+
+#[derive(Event)]
+pub struct UpdateInspector;
 
 pub fn inspector_window() -> impl Bundle {
     (
@@ -93,6 +94,7 @@ pub fn inspector_window() -> impl Bundle {
 }
 
 fn update_inspector(
+    _: On<UpdateInspector>,
     mut inspector: Query<(&mut Visibility, &Children), With<Inspector>>,
     mut text: Query<&mut Text>,
     selectables: Query<
@@ -109,6 +111,11 @@ fn update_inspector(
 ) {
     let (mut visibility, children) = inspector.single_mut().expect("Inpector should exist");
 
+    let Some(selected) = selection.entity else {
+        *visibility = Visibility::Hidden;
+        return;
+    };
+
     let mut text = text
         .get_mut(
             *children
@@ -116,11 +123,6 @@ fn update_inspector(
                 .expect("Inspector should have at least one child"),
         )
         .expect("Inpector text should exist");
-
-    let Some(selected) = selection.entity else {
-        *visibility = Visibility::Hidden;
-        return;
-    };
 
     *visibility = Visibility::Inherited;
 
@@ -130,17 +132,20 @@ fn update_inspector(
 
     **text = name.to_string() + "\n";
     if let Some(health) = health {
-        text.push_str(&format!("\nHealth: {}/{}", health.current, health.max));
+        text.push_str(&format!(
+            "\nHealth: {:.2}/{:.2}",
+            health.current, health.max
+        ));
     }
     if let Some(attack_speed) = attack_speed {
-        text.push_str(&format!("\nAttack speed: {}", attack_speed.per_second()));
+        text.push_str(&format!("\nAttack speed: {:.2}", attack_speed.per_second()));
     }
     if let Some(damage) = damage {
-        text.push_str(&format!("\nDamage: {}", damage.amount));
+        text.push_str(&format!("\nDamage: {:.2}", damage.amount));
     }
     if let Some(range) = range {
         text.push_str(&match range.range_type {
-            AttackRangeType::Circle(radius) => format!("\nRange radius: {}", radius),
+            AttackRangeType::Circle(radius) => format!("\nRange radius: {}", radius.ceil()),
         });
     }
 }

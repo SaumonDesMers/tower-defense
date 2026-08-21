@@ -2,7 +2,9 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 
 use crate::scenes::AppState;
-use crate::scenes::battlefield::health::{Damage, Health};
+use crate::scenes::battlefield::damage::Damage;
+use crate::scenes::battlefield::health::Health;
+use crate::scenes::battlefield::ui::UpdateInspector;
 
 use super::base::Base;
 use super::pathfinding::PathfindingMap;
@@ -48,9 +50,10 @@ fn enemy_reached_target_system(
     for enemy_entity in enemy_query.iter() {
         for (target_entity, mut health) in target_query.iter_mut() {
             if collisions.contains(enemy_entity, target_entity) {
-                health.take_damage(Damage::new(1));
+                health.take_damage(Damage::new(1.0));
                 commands.entity(enemy_entity).despawn();
             }
         }
     }
+    commands.trigger(UpdateInspector);
 }

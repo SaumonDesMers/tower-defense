@@ -5,6 +5,8 @@ use bevy::ui::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 use bevy::{color::palettes::tailwind, prelude::*};
 
+use crate::scenes::battlefield::ui::UpdateInspector;
+
 pub struct UpgradePlugin;
 
 impl Plugin for UpgradePlugin {
@@ -20,24 +22,19 @@ pub struct OpenUpgradeMenuEvent {
 
 #[derive(Component)]
 pub struct PossibleUpgrades {
-    upgrades: Vec<Arc<dyn UpgradeEvent>>,
+    upgrades: Vec<Arc<dyn Upgrade>>,
 }
 
 impl PossibleUpgrades {
-    pub fn new(upgrades: Vec<impl UpgradeEvent>) -> Self {
-        Self {
-            upgrades: upgrades
-                .into_iter()
-                .map(|upgrade| Arc::new(upgrade) as Arc<dyn UpgradeEvent>)
-                .collect(),
-        }
+    pub fn new(upgrades: Vec<Arc<dyn Upgrade>>) -> Self {
+        Self { upgrades }
     }
 }
 
-pub trait UpgradeEvent: Send + Sync + 'static {
+pub trait Upgrade: Send + Sync + 'static {
     fn trigger(&self, commands: &mut Commands, entity: Entity);
 
-    fn name(&self) -> String;
+    fn text(&self) -> String;
 }
 
 #[derive(Component)]
@@ -131,7 +128,7 @@ fn on_upgrade(
                 parent.spawn((
                     upgrade_button(),
                     children![(
-                        Text::new(upgrade.name()),
+                        Text::new(upgrade.text()),
                         TextColor(tailwind::SLATE_200.into()),
                     )],
                     observe(
@@ -142,6 +139,7 @@ fn on_upgrade(
                             With<UpgradeMenuTag>,
                         >| {
                             upgrade.trigger(&mut commands, entity);
+                            commands.trigger(UpdateInspector);
                             let mut visibility = upgrade_menu_visibility
                                 .single_mut()
                                 .expect("Upgrade menu should exist");

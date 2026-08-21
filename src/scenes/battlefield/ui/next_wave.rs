@@ -25,7 +25,9 @@ impl Plugin for NextWaveButtonPlugin {
                 update_next_wave_button.run_if(resource_exists_and_changed::<MapValidity>),
             )
                 .in_set(BattleFieldSet),
-        );
+        )
+        .add_systems(OnEnter(WavePhase::Finished), enable_button)
+        .add_systems(OnExit(WavePhase::Finished), disable_button);
     }
 }
 
@@ -123,5 +125,23 @@ fn update_next_wave_button(
                 enable: map_is_valid,
             });
         }
+    }
+}
+
+fn enable_button(mut commands: Commands, mut button: Query<Entity, With<NextWaveButton>>) {
+    if let Ok(entity) = button.single_mut() {
+        commands.trigger(EnableButtonEvent {
+            entity,
+            enable: true,
+        });
+    }
+}
+
+fn disable_button(mut commands: Commands, mut button: Query<Entity, With<NextWaveButton>>) {
+    if let Ok(entity) = button.single_mut() {
+        commands.trigger(EnableButtonEvent {
+            entity,
+            enable: false,
+        });
     }
 }

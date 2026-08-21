@@ -2,7 +2,7 @@ use std::{marker::PhantomData, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::scenes::battlefield::upgrade::UpgradeEvent;
+use crate::scenes::battlefield::upgrade::Upgrade;
 
 pub struct AttackSpeedPlugin;
 
@@ -42,21 +42,22 @@ impl AttackSpeedUpgrade {
     }
 }
 
-impl UpgradeEvent for AttackSpeedUpgrade {
+impl Upgrade for AttackSpeedUpgrade {
     fn trigger(&self, commands: &mut Commands, entity: Entity) {
         commands.trigger(Self { entity, ..*self });
     }
 
-    fn name(&self) -> String {
+    fn text(&self) -> String {
         String::from("Attack speed: +10%")
     }
 }
 
 fn on_attack_speed_upgrade(
-    _event: On<AttackSpeedUpgrade, AttackSpeed>,
+    event: On<AttackSpeedUpgrade>,
     mut attack_speed_q: Query<&mut AttackSpeed>,
 ) {
-    if let Ok(mut attack_speed) = attack_speed_q.get_mut(_event.entity) {
+    info!("on_attack_speed_upgrade");
+    if let Ok(mut attack_speed) = attack_speed_q.get_mut(event.entity) {
         *attack_speed = AttackSpeed::new(attack_speed.per_second() * 1.1);
     }
 }
