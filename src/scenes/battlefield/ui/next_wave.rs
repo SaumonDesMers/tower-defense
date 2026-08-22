@@ -4,7 +4,7 @@ use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::map_validity::MapValidity;
 use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
 use crate::scenes::battlefield::pathfinding::{
@@ -37,6 +37,9 @@ struct NextWaveButton;
 #[derive(Component)]
 struct MapValidityDisplay;
 
+#[derive(Component)]
+pub struct DisabledDuringWave;
+
 pub fn next_wave_button() -> impl Bundle {
     (
         Node {
@@ -66,6 +69,7 @@ pub fn next_wave_button() -> impl Bundle {
             ),
             (
                 NextWaveButton,
+                DisabledDuringWave,
                 button("Next Wave"),
                 observe(|_: On<Activate>, mut commands: Commands| {
                     commands.trigger(UpdatePathfindingMapEvent);
@@ -128,8 +132,8 @@ fn update_next_wave_button(
     }
 }
 
-fn enable_button(mut commands: Commands, mut button: Query<Entity, With<NextWaveButton>>) {
-    if let Ok(entity) = button.single_mut() {
+fn enable_button(mut commands: Commands, button: Query<Entity, With<DisabledDuringWave>>) {
+    for entity in button {
         commands.trigger(EnableButtonEvent {
             entity,
             enable: true,
@@ -137,8 +141,8 @@ fn enable_button(mut commands: Commands, mut button: Query<Entity, With<NextWave
     }
 }
 
-fn disable_button(mut commands: Commands, mut button: Query<Entity, With<NextWaveButton>>) {
-    if let Ok(entity) = button.single_mut() {
+fn disable_button(mut commands: Commands, button: Query<Entity, With<DisabledDuringWave>>) {
+    for entity in button {
         commands.trigger(EnableButtonEvent {
             entity,
             enable: false,

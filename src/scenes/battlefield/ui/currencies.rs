@@ -4,7 +4,7 @@ use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::map_validity::MapValidity;
 use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
 use crate::scenes::battlefield::pathfinding::{
@@ -20,7 +20,7 @@ impl Plugin for CurrencyDisplayPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (update_currency_display.run_if(resource_exists_and_changed::<Currency>),)
+            (update_currency_display.run_if(resource_exists_and_changed::<Coins>),)
                 .in_set(BattleFieldSet),
         );
     }
@@ -50,13 +50,10 @@ pub fn currency_display() -> impl Bundle {
 }
 
 fn update_currency_display(
-    currency: Res<Currency>,
+    coins: Res<Coins>,
     mut display: Query<&mut Text, With<CurrencyDisplay>>,
 ) {
     if let Ok(mut text) = display.single_mut() {
-        **text = format!(
-            "Coin: {}    Xp: {}",
-            currency.coin as u32, currency.xp as u32
-        );
+        **text = format!("Coin: {}", coins.0 as u32);
     }
 }

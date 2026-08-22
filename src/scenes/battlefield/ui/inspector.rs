@@ -6,17 +6,23 @@ use crate::scenes::AppState;
 use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
 use crate::scenes::battlefield::attack_speed::{self, AttackSpeed};
 use crate::scenes::battlefield::base::Base;
+use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::damage::Damage;
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::selection::{Selectable, Selection};
+use crate::scenes::battlefield::tower::TowerGlobalData;
 use crate::scenes::battlefield::ui::inspector;
-use crate::scenes::battlefield::upgrade::OpenUpgradeMenuEvent;
+use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
+use crate::ui::EnableButtonEvent;
 
 pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(update_inspector);
+        app.add_observer(update_inspector).add_systems(
+            Update,
+            update_upgrade_button.run_if(resource_exists_and_changed::<Coins>),
+        );
     }
 }
 
@@ -25,6 +31,9 @@ struct Inspector;
 
 #[derive(Event)]
 pub struct UpdateInspector;
+
+#[derive(Component)]
+struct UpgradeButton;
 
 pub fn inspector_window() -> impl Bundle {
     (
@@ -57,6 +66,8 @@ pub fn inspector_window() -> impl Bundle {
             ),
             (
                 Button,
+                DisabledDuringWave,
+                UpgradeButton,
                 Node {
                     // width: px(200),
                     margin: UiRect {
@@ -79,15 +90,9 @@ pub fn inspector_window() -> impl Bundle {
                     ..default()
                 },
                 children![(Text::new("Upgrade"), TextColor(tailwind::SLATE_200.into()),)],
-                observe(
-                    |_: On<Activate>, mut commands: Commands, selection: Res<Selection>| {
-                        commands.trigger(OpenUpgradeMenuEvent {
-                            entity: selection
-                                .entity
-                                .expect("Entity should exist when upgrading them"),
-                        });
-                    },
-                ),
+                observe(|_: On<Activate>| {
+                    info!("Upgrade !");
+                },),
             )
         ],
     )
@@ -147,5 +152,32 @@ fn update_inspector(
         text.push_str(&match range.range_type {
             AttackRangeType::Circle(radius) => format!("\nRange radius: {}", radius.ceil()),
         });
+    }
+}
+
+fn update_upgrade_button(
+    mut commands: Commands,
+    mut button: Query<(Entity, &Children), With<UpgradeButton>>,
+    mut texts: Query<&mut Text>,
+    coins: Res<Coins>,
+    tower_data: Res<TowerGlobalData>,
+    mut had_enough_coin: Local<Option<bool>>,
+) {
+    if let Ok((entity, children)) = button.single_mut() {
+        let mut text = texts
+            .get_mut(children[0])
+            .expect("Should have child with Text.");
+        **text = format!("Upgrade ({} coins)", tower_data.upgrade_price as u32);
+        let has_enough_coin = coins.0 >= tower_data.upgrade_price;
+        if *&had_enough_coin.is_none()
+            || (*had_enough_coin).expect("Should not execute if None because of previous condition")
+                != has_enough_coin
+        {
+            *had_enough_coin = Some(has_enough_coin);
+            commands.trigger(EnableButtonEvent {
+                entity,
+                enable: has_enough_coin,
+            });
+        }
     }
 }

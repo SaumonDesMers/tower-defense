@@ -20,7 +20,6 @@ mod selection;
 mod spawner;
 mod tower;
 mod ui;
-mod upgrade;
 mod wave;
 
 use crate::scenes::battlefield::attack_range::AttackRangePlugin;
@@ -29,13 +28,12 @@ use crate::scenes::battlefield::damage::{Damage, DamagePlugin};
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
-use crate::scenes::battlefield::upgrade::{UpgradePlugin, upgrade_menu};
 use crate::scenes::battlefield::wave::WaveSpawnerZone;
 use crate::scenes::{
     AppState,
     battlefield::{
         click_attack::{ClickAttackGlobalData, ClickAttackPlugin},
-        currency::{Currency, CurrencyPlugin},
+        currency::{Coins, CurrencyPlugin},
         obstacle::{ObstacleGlobalData, ObstaclePlugin},
         pathfinding::PathfindingMap,
         tower::TowerGlobalData,
@@ -78,7 +76,6 @@ impl Plugin for BattleFieldPlugin {
         .add_plugins((
             MapValidityPlugin,
             AttackRangePlugin,
-            UpgradePlugin,
             AttackSpeedPlugin,
             DamagePlugin,
         ))
@@ -138,9 +135,8 @@ fn setup(
 
     // UI
     commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
-    commands.spawn((DespawnOnExit(AppState::InGame), upgrade_menu()));
 
-    commands.insert_resource(Currency { coin: 0.0, xp: 0.0 });
+    commands.insert_resource(Coins(10000.0));
     commands.insert_resource(Selection { entity: None });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
@@ -153,7 +149,10 @@ fn setup(
         count: 1,
         delay: 1.0,
     });
-    commands.insert_resource(TowerGlobalData { price: 10.0 });
+    commands.insert_resource(TowerGlobalData {
+        build_price: 10.0,
+        upgrade_price: 10.0,
+    });
     commands.insert_resource(ObstacleGlobalData { price: 10.0 });
     commands.insert_resource(ClickAttackGlobalData {
         damage: Damage::new(10.0),
@@ -163,7 +162,7 @@ fn setup(
 
 fn cleanup(mut commands: Commands) {
     info!("Cleaning up battlefield...");
-    commands.remove_resource::<Currency>();
+    commands.remove_resource::<Coins>();
     commands.remove_resource::<Selection>();
     commands.remove_resource::<MapValidity>();
     commands.remove_resource::<PathfindingMap>();

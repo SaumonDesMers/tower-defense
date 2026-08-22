@@ -3,15 +3,14 @@ use std::time::Duration;
 use avian2d::collision::collider::{Collider, Sensor};
 use bevy::{color::palettes::tailwind, prelude::*};
 
-use crate::{RessourcesHandler, scenes::battlefield::upgrade::Upgrade};
+use crate::RessourcesHandler;
 
 pub struct AttackRangePlugin;
 
 impl Plugin for AttackRangePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(on_insert_range)
-            .add_observer(on_discard_range)
-            .add_observer(on_attack_range_upgrade);
+            .add_observer(on_discard_range);
     }
 }
 
@@ -72,44 +71,5 @@ fn on_discard_range(
 ) {
     if let Ok(attack_range) = query.get(event.entity) {
         commands.entity(attack_range.collider_entity).despawn();
-    }
-}
-
-#[derive(EntityEvent, Clone)]
-pub struct AttackRangeUpgrade {
-    entity: Entity,
-}
-
-impl AttackRangeUpgrade {
-    pub fn new() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-
-impl Upgrade for AttackRangeUpgrade {
-    fn trigger(&self, commands: &mut Commands, entity: Entity) {
-        commands.trigger(Self { entity, ..*self });
-    }
-
-    fn text(&self) -> String {
-        String::from("attack_range: +10%")
-    }
-}
-
-fn on_attack_range_upgrade(
-    event: On<AttackRangeUpgrade>,
-    mut commands: Commands,
-    attack_range_q: Query<&AttackRange>,
-) {
-    if let Ok(attack_range) = attack_range_q.get(event.entity) {
-        commands
-            .entity(event.entity)
-            .insert(match attack_range.range_type {
-                AttackRangeType::Circle(radius) => {
-                    AttackRange::new(AttackRangeType::Circle(radius * 1.1))
-                }
-            });
     }
 }

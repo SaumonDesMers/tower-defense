@@ -4,7 +4,7 @@ use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::map_validity::MapValidity;
 use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
 use crate::scenes::battlefield::pathfinding::{

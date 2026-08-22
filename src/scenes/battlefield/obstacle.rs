@@ -6,7 +6,7 @@ use super::physic::GameLayer;
 use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
-use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::currency::Coins;
 
 pub struct ObstaclePlugin;
 
@@ -28,11 +28,11 @@ fn buy_obstacle(
     _: On<BuyObstacleEvent>,
     mut commands: Commands,
     ressources_handler: Res<RessourcesHandler>,
-    mut currency: ResMut<Currency>,
+    mut coins: ResMut<Coins>,
     mut obstacle_data: ResMut<ObstacleGlobalData>,
 ) {
-    if currency.coin >= obstacle_data.price {
-        currency.coin -= obstacle_data.price;
+    if coins.0 >= obstacle_data.price {
+        coins.0 -= obstacle_data.price;
         obstacle_data.price *= 1.5;
         commands.spawn(obstacle(&ressources_handler));
     }

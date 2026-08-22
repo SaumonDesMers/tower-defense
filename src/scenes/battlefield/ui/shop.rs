@@ -4,13 +4,14 @@ use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::currency::Currency;
+use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::map_validity::MapValidity;
 use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
 use crate::scenes::battlefield::pathfinding::{
     PartialUpdatePathfindingMapEvent, UpdatePathfindingMapEvent,
 };
 use crate::scenes::battlefield::tower::{BuyTowerEvent, TowerGlobalData};
+use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
 use crate::scenes::battlefield::wave::{LaunchWaveEvent, WavePhase};
 use crate::ui::EnableButtonEvent;
 
@@ -21,13 +22,11 @@ impl Plugin for ShopPlugin {
         app.add_systems(
             Update,
             (
-                update_buy_tower_button.run_if(resource_exists_and_changed::<Currency>),
-                update_buy_obstacle_button.run_if(resource_exists_and_changed::<Currency>),
+                update_buy_tower_button.run_if(resource_exists_and_changed::<Coins>),
+                update_buy_obstacle_button.run_if(resource_exists_and_changed::<Coins>),
             )
                 .in_set(BattleFieldSet),
-        )
-        .add_systems(OnEnter(WavePhase::Finished), enable_buttons)
-        .add_systems(OnExit(WavePhase::Finished), disable_buttons);
+        );
     }
 }
 
@@ -88,6 +87,7 @@ pub fn shop() -> impl Bundle {
 fn button(text: &str) -> impl Bundle {
     (
         Button,
+        DisabledDuringWave,
         Node {
             width: percent(80),
             height: px(50),
@@ -108,7 +108,7 @@ fn update_buy_tower_button(
     mut commands: Commands,
     mut button: Query<(Entity, &Children), With<BuyTowerButton>>,
     mut texts: Query<&mut Text>,
-    currency: Res<Currency>,
+    coins: Res<Coins>,
     tower_data: Res<TowerGlobalData>,
     mut had_enough_coin: Local<Option<bool>>,
 ) {
@@ -116,8 +116,8 @@ fn update_buy_tower_button(
         let mut text = texts
             .get_mut(children[0])
             .expect("Should have child with Text.");
-        **text = format!("Buy Tower\n{}", tower_data.price as u32);
-        let has_enough_coin = currency.coin >= tower_data.price;
+        **text = format!("Buy Tower\n{}", tower_data.build_price as u32);
+        let has_enough_coin = coins.0 >= tower_data.build_price;
         if *&had_enough_coin.is_none()
             || (*had_enough_coin).expect("Should not execute if None because of previous condition")
                 != has_enough_coin
@@ -135,7 +135,7 @@ fn update_buy_obstacle_button(
     mut commands: Commands,
     mut button: Query<(Entity, &Children), With<BuyObstacleButton>>,
     mut texts: Query<&mut Text>,
-    currency: Res<Currency>,
+    coins: Res<Coins>,
     obstacle_data: Res<ObstacleGlobalData>,
     mut had_enough_coin: Local<Option<bool>>,
 ) {
@@ -144,7 +144,7 @@ fn update_buy_obstacle_button(
             .get_mut(children[0])
             .expect("Should have child with Text.");
         **text = format!("Buy Obstacle\n{}", obstacle_data.price as u32);
-        let has_enough_coin = currency.coin >= obstacle_data.price;
+        let has_enough_coin = coins.0 >= obstacle_data.price;
         if *&had_enough_coin.is_none()
             || (*had_enough_coin).expect("Should not execute if None because of previous condition")
                 != has_enough_coin
@@ -155,23 +155,5 @@ fn update_buy_obstacle_button(
                 enable: has_enough_coin,
             });
         }
-    }
-}
-
-fn enable_buttons(mut commands: Commands, button: Query<Entity, With<ShopButton>>) {
-    for entity in button {
-        commands.trigger(EnableButtonEvent {
-            entity,
-            enable: true,
-        });
-    }
-}
-
-fn disable_buttons(mut commands: Commands, button: Query<Entity, With<ShopButton>>) {
-    for entity in button {
-        commands.trigger(EnableButtonEvent {
-            entity,
-            enable: false,
-        });
     }
 }

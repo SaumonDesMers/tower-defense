@@ -13,13 +13,12 @@ use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType, AttackRangeUpgrade};
-use crate::scenes::battlefield::attack_speed::{AttackSpeed, AttackSpeedUpgrade};
-use crate::scenes::battlefield::currency::Currency;
-use crate::scenes::battlefield::damage::{Damage, DamageUpgrade};
+use crate::scenes::battlefield::attack_range::{AttackRange, AttackRangeType};
+use crate::scenes::battlefield::attack_speed::AttackSpeed;
+use crate::scenes::battlefield::currency::Coins;
+use crate::scenes::battlefield::damage::Damage;
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
 use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
-use crate::scenes::battlefield::upgrade::PossibleUpgrades;
 
 pub struct TowerPlugin;
 
@@ -35,7 +34,8 @@ pub struct Tower;
 
 #[derive(Resource)]
 pub struct TowerGlobalData {
-    pub price: f32,
+    pub build_price: f32,
+    pub upgrade_price: f32,
 }
 
 #[derive(Event)]
@@ -60,11 +60,6 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
         Damage::new(5.0),
         AttackSpeed::new(1.0),
         AttackRange::new(AttackRangeType::Circle(200.0)),
-        PossibleUpgrades::new(vec![
-            Arc::new(AttackSpeedUpgrade::new()),
-            Arc::new(DamageUpgrade::new()),
-            Arc::new(AttackRangeUpgrade::new()),
-        ]),
     )
 }
 
@@ -130,12 +125,12 @@ fn buy_tower(
     _: On<BuyTowerEvent>,
     mut commands: Commands,
     ressources_handler: Res<RessourcesHandler>,
-    mut currency: ResMut<Currency>,
+    mut coins: ResMut<Coins>,
     mut tower_data: ResMut<TowerGlobalData>,
 ) {
-    if currency.coin >= tower_data.price {
-        currency.coin -= tower_data.price;
-        tower_data.price *= 1.5;
+    if coins.0 >= tower_data.build_price {
+        coins.0 -= tower_data.build_price;
+        tower_data.build_price *= 1.5;
         commands.spawn(tower(&ressources_handler));
     }
 }
