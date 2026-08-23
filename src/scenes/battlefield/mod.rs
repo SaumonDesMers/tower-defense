@@ -20,6 +20,7 @@ mod selection;
 mod spawner;
 mod tower;
 mod ui;
+mod upgrade;
 mod wave;
 
 use crate::scenes::battlefield::attack_range::AttackRangePlugin;
@@ -35,7 +36,7 @@ use crate::scenes::{
     battlefield::{
         click_attack::{ClickAttackGlobalData, ClickAttackPlugin},
         currency::{Coins, CurrencyPlugin},
-        obstacle::{ObstacleGlobalData, ObstaclePlugin},
+        obstacle::ObstaclePlugin,
         pathfinding::PathfindingMap,
         tower::TowerGlobalData,
         wave::WaveGlobalData,
@@ -89,6 +90,9 @@ impl Plugin for BattleFieldPlugin {
 #[derive(SystemSet, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BattleFieldSet;
 
+#[derive(Component)]
+pub struct BackGround;
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -101,6 +105,8 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, -0.2),
         Mesh2d(meshes.add(Rectangle::new(10000.0, 10000.0))),
         MeshMaterial2d(materials.add(Color::from(tailwind::LIME_800))),
+        Collider::from(Rectangle::new(10000.0, 10000.0)),
+        BackGround,
     ));
 
     // Ground
@@ -138,7 +144,7 @@ fn setup(
     commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
 
     commands.insert_resource(Shop::new());
-    commands.insert_resource(Coins(100.0));
+    commands.insert_resource(Coins(0.0));
     commands.insert_resource(Selection { entity: None });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
@@ -154,10 +160,9 @@ fn setup(
     commands.insert_resource(TowerGlobalData {
         upgrade_price: 10.0,
     });
-    commands.insert_resource(ObstacleGlobalData { price: 10.0 });
     commands.insert_resource(ClickAttackGlobalData {
-        damage: Damage::new(10.0),
-        mesh: meshes.add(Circle::new(100.0)),
+        damage: Damage::new(1.0),
+        mesh: meshes.add(Circle::new(20.0)),
     });
 }
 
@@ -169,6 +174,5 @@ fn cleanup(mut commands: Commands) {
     commands.remove_resource::<PathfindingMap>();
     commands.remove_resource::<WaveGlobalData>();
     commands.remove_resource::<TowerGlobalData>();
-    commands.remove_resource::<ObstacleGlobalData>();
     commands.remove_resource::<ClickAttackGlobalData>();
 }

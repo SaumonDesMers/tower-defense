@@ -1,12 +1,10 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
-use itertools::Itertools;
 
 use crate::scenes::battlefield::{
-    BattleFieldSet,
     base::Base,
     buildings::Building,
-    pathfinding::{self, PathfindingMap},
+    pathfinding::PathfindingMap,
     wave::{WavePhase, WaveSpawnerZone},
 };
 

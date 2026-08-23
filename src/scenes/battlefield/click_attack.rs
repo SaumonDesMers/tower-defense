@@ -53,7 +53,7 @@ fn attack_on_click(
         if let Ok(pos) =
             camera.viewport_to_world_2d(camera_transform, event.pointer_location.position)
         {
-            commands.trigger(ClickAttackEvent::new(pos, 100.0));
+            commands.trigger(ClickAttackEvent::new(pos, 20.0));
         } else {
             warn!("Missing position.")
         }

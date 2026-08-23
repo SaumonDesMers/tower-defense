@@ -1,11 +1,10 @@
-use avian2d::prelude::*;
 use bevy::prelude::*;
 
 use crate::{
     Score,
     scenes::{
         AppState,
-        battlefield::{BattleFieldSet, health::KilledEvent, wave::WaveGlobalData},
+        battlefield::{health::KilledEvent, wave::WaveGlobalData},
     },
 };
 

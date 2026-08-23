@@ -1,4 +1,6 @@
 use avian2d::prelude::*;
+use bevy::color::palettes::tailwind;
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 
 use super::buildings::Building;
@@ -7,6 +9,7 @@ use super::selection::Selectable;
 use crate::RessourcesHandler;
 use crate::scenes::AppState;
 use crate::scenes::battlefield::currency::Coins;
+use crate::scenes::battlefield::ui::{Price, ShopItem};
 
 pub struct ObstaclePlugin;
 
@@ -16,9 +19,22 @@ impl Plugin for ObstaclePlugin {
     }
 }
 
-#[derive(Resource)]
-pub struct ObstacleGlobalData {
-    pub price: f32,
+const OBSTACLE_PRICE: f32 = 10.0;
+
+pub struct Obstacle;
+
+impl ShopItem for Obstacle {
+    fn spawn(&self, commands: &mut RelatedSpawnerCommands<'_, ChildOf>) {
+        commands.spawn((Text::new("Obstacle"), TextColor(tailwind::SLATE_200.into())));
+    }
+
+    fn price(&self) -> Price {
+        Price(OBSTACLE_PRICE)
+    }
+
+    fn buy(&self, commands: &mut Commands) {
+        commands.trigger(BuyObstacleEvent);
+    }
 }
 
 #[derive(Event)]
@@ -29,11 +45,9 @@ fn buy_obstacle(
     mut commands: Commands,
     ressources_handler: Res<RessourcesHandler>,
     mut coins: ResMut<Coins>,
-    mut obstacle_data: ResMut<ObstacleGlobalData>,
 ) {
-    if coins.0 >= obstacle_data.price {
-        coins.0 -= obstacle_data.price;
-        obstacle_data.price *= 1.5;
+    if coins.0 >= OBSTACLE_PRICE {
+        coins.0 -= OBSTACLE_PRICE;
         commands.spawn(obstacle(&ressources_handler));
     }
 }

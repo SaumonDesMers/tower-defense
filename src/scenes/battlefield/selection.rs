@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::scenes::AppState;
+use crate::scenes::battlefield::BackGround;
 use crate::scenes::battlefield::ui::UpdateInspector;
 
 pub struct SelectionPlugin;
@@ -26,10 +27,11 @@ pub struct Selection {
 fn select_entity(
     mut click: On<Pointer<Click>>,
     mut commands: Commands,
-    query: Query<(), With<Selectable>>,
+    selectables: Query<(), With<Selectable>>,
+    background: Query<(), With<BackGround>>,
     mut selection: ResMut<Selection>,
 ) {
-    if query.get(click.entity).is_ok() {
+    if selectables.get(click.entity).is_ok() {
         if let Some(current) = selection.entity {
             if current != click.entity {
                 selection.entity = Some(click.entity);
@@ -37,7 +39,7 @@ fn select_entity(
         } else {
             selection.entity = Some(click.entity);
         }
-    } else if selection.entity.is_some() {
+    } else if selection.entity.is_some() && background.contains(click.entity) {
         selection.entity = None;
     }
     commands.trigger(UpdateInspector {});

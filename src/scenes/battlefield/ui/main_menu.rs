@@ -3,17 +3,6 @@ use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
 use crate::scenes::AppState;
-use crate::scenes::battlefield::BattleFieldSet;
-use crate::scenes::battlefield::currency::Coins;
-use crate::scenes::battlefield::map_validity::MapValidity;
-use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
-use crate::scenes::battlefield::pathfinding::{
-    PartialUpdatePathfindingMapEvent, UpdatePathfindingMapEvent,
-};
-use crate::scenes::battlefield::tower::{BuyTowerEvent, TowerGlobalData};
-use crate::scenes::battlefield::wave::{LaunchWaveEvent, WavePhase};
-use crate::ui::EnableButtonEvent;
-
 pub struct MainMenuButtonPlugin;
 
 impl Plugin for MainMenuButtonPlugin {

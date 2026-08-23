@@ -5,17 +5,11 @@ use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use crate::scenes::AppState;
 use crate::scenes::battlefield::BattleFieldSet;
 use crate::scenes::battlefield::currency::Coins;
-use crate::scenes::battlefield::map_validity::MapValidity;
-use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData};
-use crate::scenes::battlefield::pathfinding::{
-    PartialUpdatePathfindingMapEvent, UpdatePathfindingMapEvent,
-};
-use crate::scenes::battlefield::tower::{BuyTowerEvent, Tower, TowerGlobalData};
+use crate::scenes::battlefield::obstacle::Obstacle;
+use crate::scenes::battlefield::tower::Tower;
 use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
-use crate::scenes::battlefield::wave::{LaunchWaveEvent, WavePhase};
 use crate::ui::EnableButtonEvent;
 
 pub struct ShopPlugin;
@@ -45,8 +39,8 @@ pub struct Shop {
 impl Shop {
     pub fn new() -> Self {
         Self {
-            all_items: vec![Arc::new(Tower)],
-            current_items: vec![0],
+            all_items: vec![Arc::new(Tower), Arc::new(Obstacle)],
+            current_items: vec![0, 1],
         }
     }
 }

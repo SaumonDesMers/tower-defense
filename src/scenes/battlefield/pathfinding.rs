@@ -3,19 +3,14 @@ use std::iter::successors;
 use std::time::Duration;
 use std::time::Instant;
 
-use avian2d::{debug_render, parry::query, prelude::*};
-use bevy::ecs::relationship::RelationshipSourceCollection;
+use avian2d::prelude::*;
 use bevy::image::ImageSampler;
 use bevy::image::TextureAccessError;
-use bevy::platform::collections::HashSet;
 use bevy::{
     asset::RenderAssetUsages,
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
-use itertools::Itertools;
-
-use crate::scenes::AppState;
 
 use super::{base::Base, physic::GameLayer};
 

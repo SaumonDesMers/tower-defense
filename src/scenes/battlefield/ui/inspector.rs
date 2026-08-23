@@ -13,6 +13,7 @@ use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::tower::TowerGlobalData;
 use crate::scenes::battlefield::ui::inspector;
 use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
+use crate::scenes::battlefield::upgrade::{Level, UpgradeEvent};
 use crate::ui::EnableButtonEvent;
 
 pub struct InspectorPlugin;
@@ -21,7 +22,10 @@ impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(update_inspector).add_systems(
             Update,
-            update_upgrade_button.run_if(resource_exists_and_changed::<Coins>),
+            update_upgrade_button.run_if(
+                resource_exists_and_changed::<Coins>
+                    .or_else(resource_exists_and_changed::<Selection>),
+            ),
         );
     }
 }
@@ -69,12 +73,6 @@ pub fn inspector_window() -> impl Bundle {
                 DisabledDuringWave,
                 UpgradeButton,
                 Node {
-                    // width: px(200),
-                    margin: UiRect {
-                        right: px(10),
-                        top: px(10),
-                        ..UiRect::default()
-                    },
                     border_radius: BorderRadius::all(px(10)),
 
                     display: Display::Flex,
@@ -90,9 +88,7 @@ pub fn inspector_window() -> impl Bundle {
                     ..default()
                 },
                 children![(Text::new("Upgrade"), TextColor(tailwind::SLATE_200.into()),)],
-                observe(|_: On<Activate>| {
-                    info!("Upgrade !");
-                },),
+                observe(on_activate_upgrade_button),
             )
         ],
     )
@@ -101,10 +97,12 @@ pub fn inspector_window() -> impl Bundle {
 fn update_inspector(
     _: On<UpdateInspector>,
     mut inspector: Query<(&mut Visibility, &Children), With<Inspector>>,
+    mut upgrade_button: Single<&mut Node, With<UpgradeButton>>,
     mut text: Query<&mut Text>,
     selectables: Query<
         (
             &Name,
+            Option<&Level>,
             Option<&Health>,
             Option<&AttackSpeed>,
             Option<&Damage>,
@@ -120,6 +118,7 @@ fn update_inspector(
         *visibility = Visibility::Hidden;
         return;
     };
+    *visibility = Visibility::Inherited;
 
     let mut text = text
         .get_mut(
@@ -129,13 +128,17 @@ fn update_inspector(
         )
         .expect("Inpector text should exist");
 
-    *visibility = Visibility::Inherited;
-
-    let (name, health, attack_speed, damage, range) = selectables
+    let (name, level, health, attack_speed, damage, range) = selectables
         .get(selected)
         .expect("Selected entity should exist");
 
     **text = name.to_string() + "\n";
+    if let Some(level) = level {
+        text.push_str(&format!("\nLevel: {}", level.count));
+        upgrade_button.display = Display::Flex;
+    } else {
+        upgrade_button.display = Display::None;
+    }
     if let Some(health) = health {
         text.push_str(&format!(
             "\nHealth: {:.2}/{:.2}",
@@ -155,29 +158,76 @@ fn update_inspector(
     }
 }
 
+#[derive(Component)]
+pub struct HadEnoughCoin(bool);
+
 fn update_upgrade_button(
     mut commands: Commands,
-    mut button: Query<(Entity, &Children), With<UpgradeButton>>,
-    mut texts: Query<&mut Text>,
+    button: Single<(Entity, Option<&mut HadEnoughCoin>, &Children), With<UpgradeButton>>,
+    mut texts: Query<(&mut Text, &mut TextColor)>,
+    level: Query<&Level>,
+    selection: Res<Selection>,
     coins: Res<Coins>,
-    tower_data: Res<TowerGlobalData>,
-    mut had_enough_coin: Local<Option<bool>>,
 ) {
-    if let Ok((entity, children)) = button.single_mut() {
-        let mut text = texts
-            .get_mut(children[0])
-            .expect("Should have child with Text.");
-        **text = format!("Upgrade ({} coins)", tower_data.upgrade_price as u32);
-        let has_enough_coin = coins.0 >= tower_data.upgrade_price;
-        if *&had_enough_coin.is_none()
-            || (*had_enough_coin).expect("Should not execute if None because of previous condition")
-                != has_enough_coin
-        {
-            *had_enough_coin = Some(has_enough_coin);
+    let (entity, maybe_had_enough_coin, children) = button.into_inner();
+    let Some(selected_entity) = selection.entity else {
+        return;
+    };
+    let Ok(level) = level.get(selected_entity) else {
+        return;
+    };
+    let has_enough_coin = coins.0 >= level.price;
+
+    let (mut text, mut color) = texts
+        .get_mut(children[0])
+        .expect("Should have child with Text.");
+
+    **text = format!("Upgrade ({} coins)", level.price as u32);
+    if has_enough_coin {
+        *color = TextColor(tailwind::SLATE_200.into());
+    } else {
+        *color = TextColor(tailwind::RED_700.into())
+    }
+
+    if let Some(mut had_enough_coin) = maybe_had_enough_coin {
+        if had_enough_coin.0 != has_enough_coin {
+            had_enough_coin.0 = has_enough_coin;
             commands.trigger(EnableButtonEvent {
                 entity,
                 enable: has_enough_coin,
             });
         }
+    } else {
+        commands
+            .entity(entity)
+            .insert(HadEnoughCoin(has_enough_coin));
+        if !has_enough_coin {
+            commands.trigger(EnableButtonEvent {
+                entity,
+                enable: false,
+            });
+        }
+    }
+}
+
+fn on_activate_upgrade_button(
+    _: On<Activate>,
+    mut commands: Commands,
+    mut current_level: Query<&mut Level>,
+    selection: Res<Selection>,
+    mut coins: ResMut<Coins>,
+) {
+    let selected_entity = selection.entity.expect("Selected entity should exist");
+    let mut level = current_level
+        .get_mut(selected_entity)
+        .expect("Selected entity should have Level Component if upgrade button is triggered");
+    if coins.0 >= level.price {
+        coins.0 -= level.price;
+        level.count += 1;
+        level.price *= level.price_mul;
+        commands.trigger(UpgradeEvent {
+            entity: selected_entity,
+            _new_level: level.count,
+        });
     }
 }

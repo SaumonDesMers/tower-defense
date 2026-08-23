@@ -1,16 +1,15 @@
-use std::time::Duration;
-
 use avian2d::collision::collider::{Collider, Sensor};
 use bevy::{color::palettes::tailwind, prelude::*};
 
-use crate::RessourcesHandler;
+use crate::scenes::battlefield::upgrade::UpgradeEvent;
 
 pub struct AttackRangePlugin;
 
 impl Plugin for AttackRangePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(on_insert_range)
-            .add_observer(on_discard_range);
+            .add_observer(on_discard_range)
+            .add_observer(on_upgrade);
     }
 }
 
@@ -71,5 +70,19 @@ fn on_discard_range(
 ) {
     if let Ok(attack_range) = query.get(event.entity) {
         commands.entity(attack_range.collider_entity).despawn();
+    }
+}
+
+fn on_upgrade(
+    event: On<UpgradeEvent>,
+    mut commands: Commands,
+    attack_range_q: Query<&AttackRange>,
+) {
+    if let Ok(attack_range) = attack_range_q.get(event.entity) {
+        commands
+            .entity(event.entity)
+            .insert(AttackRange::new(match attack_range.range_type {
+                AttackRangeType::Circle(radius) => AttackRangeType::Circle(radius + 10.0),
+            }));
     }
 }
