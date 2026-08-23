@@ -32,7 +32,7 @@ struct CurrencyDisplay;
 pub fn currency_display() -> impl Bundle {
     (
         Node {
-            width: px(300),
+            width: px(200),
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
             display: Display::Flex,

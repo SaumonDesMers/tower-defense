@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use avian2d::prelude::*;
+use bevy::color::palettes::tailwind;
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 
 use super::buildings::Building;
@@ -19,6 +21,7 @@ use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::damage::Damage;
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
 use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
+use crate::scenes::battlefield::ui::{Price, ShopItem};
 
 pub struct TowerPlugin;
 
@@ -29,12 +32,27 @@ impl Plugin for TowerPlugin {
     }
 }
 
+const TOWER_PRICE: f32 = 10.0;
+
 #[derive(Component)]
 pub struct Tower;
 
+impl ShopItem for Tower {
+    fn spawn(&self, commands: &mut RelatedSpawnerCommands<'_, ChildOf>) {
+        commands.spawn((Text::new("Tower"), TextColor(tailwind::SLATE_200.into())));
+    }
+
+    fn price(&self) -> Price {
+        Price(TOWER_PRICE)
+    }
+
+    fn buy(&self, commands: &mut Commands) {
+        commands.trigger(BuyTowerEvent);
+    }
+}
+
 #[derive(Resource)]
 pub struct TowerGlobalData {
-    pub build_price: f32,
     pub upgrade_price: f32,
 }
 
@@ -126,11 +144,9 @@ fn buy_tower(
     mut commands: Commands,
     ressources_handler: Res<RessourcesHandler>,
     mut coins: ResMut<Coins>,
-    mut tower_data: ResMut<TowerGlobalData>,
 ) {
-    if coins.0 >= tower_data.build_price {
-        coins.0 -= tower_data.build_price;
-        tower_data.build_price *= 1.5;
+    if coins.0 >= TOWER_PRICE {
+        coins.0 -= TOWER_PRICE;
         commands.spawn(tower(&ressources_handler));
     }
 }

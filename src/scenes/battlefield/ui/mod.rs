@@ -7,6 +7,7 @@ use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 
 pub use inspector::UpdateInspector;
+pub use shop::{Price, Shop, ShopItem};
 
 mod currencies;
 mod inspector;

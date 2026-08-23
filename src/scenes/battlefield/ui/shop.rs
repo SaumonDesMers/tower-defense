@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use bevy::color::palettes::tailwind;
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
@@ -10,7 +13,7 @@ use crate::scenes::battlefield::obstacle::{BuyObstacleEvent, ObstacleGlobalData}
 use crate::scenes::battlefield::pathfinding::{
     PartialUpdatePathfindingMapEvent, UpdatePathfindingMapEvent,
 };
-use crate::scenes::battlefield::tower::{BuyTowerEvent, TowerGlobalData};
+use crate::scenes::battlefield::tower::{BuyTowerEvent, Tower, TowerGlobalData};
 use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
 use crate::scenes::battlefield::wave::{LaunchWaveEvent, WavePhase};
 use crate::ui::EnableButtonEvent;
@@ -22,25 +25,53 @@ impl Plugin for ShopPlugin {
         app.add_systems(
             Update,
             (
-                update_buy_tower_button.run_if(resource_exists_and_changed::<Coins>),
-                update_buy_obstacle_button.run_if(resource_exists_and_changed::<Coins>),
+                update_shop_button.run_if(
+                    resource_exists_and_changed::<Coins>
+                        .or_else(resource_exists_and_changed::<Shop>),
+                ),
+                update_shop.run_if(resource_exists_and_changed::<Shop>),
             )
                 .in_set(BattleFieldSet),
         );
     }
 }
 
-#[derive(Component)]
-struct BuyTowerButton;
+#[derive(Resource)]
+pub struct Shop {
+    all_items: Vec<Arc<dyn ShopItem>>,
+    current_items: Vec<usize>,
+}
+
+impl Shop {
+    pub fn new() -> Self {
+        Self {
+            all_items: vec![Arc::new(Tower)],
+            current_items: vec![0],
+        }
+    }
+}
+
+pub trait ShopItem: Send + Sync + 'static {
+    fn spawn(&self, commands: &mut RelatedSpawnerCommands<'_, ChildOf>);
+    fn buy(&self, commands: &mut Commands);
+    fn price(&self) -> Price;
+}
 
 #[derive(Component)]
-struct BuyObstacleButton;
+struct ShopItemContainer;
 
 #[derive(Component)]
 struct ShopButton;
 
+#[derive(Component)]
+pub struct Price(pub f32);
+
+#[derive(Component)]
+pub struct HadEnoughCoin(bool);
+
 pub fn shop() -> impl Bundle {
     (
+        ShopItemContainer,
         Node {
             width: px(400),
             height: px(600),
@@ -61,99 +92,92 @@ pub fn shop() -> impl Bundle {
             ..default()
         },
         BackgroundColor(tailwind::INDIGO_900.into()),
-        children![
-            (
-                BuyTowerButton,
-                ShopButton,
-                button("Buy tower"),
-                observe(|_: On<Activate>, mut commands: Commands| {
-                    commands.trigger(BuyTowerEvent);
-                    commands.trigger(PartialUpdatePathfindingMapEvent);
-                })
-            ),
-            (
-                BuyObstacleButton,
-                ShopButton,
-                button("Buy obstacle"),
-                observe(|_: On<Activate>, mut commands: Commands| {
-                    commands.trigger(BuyObstacleEvent);
-                    commands.trigger(PartialUpdatePathfindingMapEvent);
-                })
-            ),
-        ],
     )
 }
 
-fn button(text: &str) -> impl Bundle {
-    (
-        Button,
-        DisabledDuringWave,
-        Node {
-            width: percent(80),
-            height: px(50),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            row_gap: px(10),
-            border: UiRect::all(px(5)),
-            border_radius: BorderRadius::all(percent(10)),
-            ..default()
-        },
-        children![(Text::new(text), TextColor(tailwind::SLATE_200.into()),)],
-    )
-}
-
-fn update_buy_tower_button(
+fn update_shop(
     mut commands: Commands,
-    mut button: Query<(Entity, &Children), With<BuyTowerButton>>,
-    mut texts: Query<&mut Text>,
-    coins: Res<Coins>,
-    tower_data: Res<TowerGlobalData>,
-    mut had_enough_coin: Local<Option<bool>>,
+    shop: Res<Shop>,
+    item_container: Single<Entity, With<ShopItemContainer>>,
 ) {
-    if let Ok((entity, children)) = button.single_mut() {
-        let mut text = texts
-            .get_mut(children[0])
+    commands
+        .entity(*item_container)
+        .despawn_children()
+        .with_children(|container| {
+            shop.current_items
+                .iter()
+                .filter_map(|index| shop.all_items.get(*index))
+                .for_each(|item| {
+                    let cloned_item = item.clone();
+                    container
+                        .spawn((
+                            Button,
+                            Node {
+                                width: percent(80),
+                                height: px(100),
+                                align_items: AlignItems::Center,
+                                justify_content: JustifyContent::Center,
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(10),
+                                border: UiRect::all(px(5)),
+                                border_radius: BorderRadius::all(percent(10)),
+                                ..default()
+                            },
+                            DisabledDuringWave,
+                            ShopButton,
+                            item.price(),
+                            observe(move |_: On<Activate>, mut commands: Commands| {
+                                cloned_item.buy(&mut commands);
+                            }),
+                        ))
+                        .with_children(|button| {
+                            item.spawn(button);
+                            button
+                                .spawn((Text::new("Price"), TextColor(tailwind::SLATE_200.into())));
+                        });
+                });
+        });
+}
+
+fn update_shop_button(
+    mut commands: Commands,
+    button: Query<(Entity, &Price, Option<&mut HadEnoughCoin>, &Children), With<ShopButton>>,
+    mut texts: Query<(&mut Text, &mut TextColor)>,
+    coins: Res<Coins>,
+) {
+    for (entity, price, maybe_had_enough_coin, children) in button {
+        let has_enough_coin = coins.0 >= price.0;
+
+        let (mut text, mut color) = texts
+            .get_mut(children[1])
             .expect("Should have child with Text.");
-        **text = format!("Buy Tower\n{}", tower_data.build_price as u32);
-        let has_enough_coin = coins.0 >= tower_data.build_price;
-        if *&had_enough_coin.is_none()
-            || (*had_enough_coin).expect("Should not execute if None because of previous condition")
-                != has_enough_coin
-        {
-            *had_enough_coin = Some(has_enough_coin);
-            commands.trigger(EnableButtonEvent {
-                entity,
-                enable: has_enough_coin,
-            });
+
+        **text = format!("{} coins", price.0 as u32);
+        if has_enough_coin {
+            *color = TextColor(tailwind::SLATE_200.into());
+        } else {
+            *color = TextColor(tailwind::RED_700.into())
         }
-    }
-}
 
-fn update_buy_obstacle_button(
-    mut commands: Commands,
-    mut button: Query<(Entity, &Children), With<BuyObstacleButton>>,
-    mut texts: Query<&mut Text>,
-    coins: Res<Coins>,
-    obstacle_data: Res<ObstacleGlobalData>,
-    mut had_enough_coin: Local<Option<bool>>,
-) {
-    if let Ok((entity, children)) = button.single_mut() {
-        let mut text = texts
-            .get_mut(children[0])
-            .expect("Should have child with Text.");
-        **text = format!("Buy Obstacle\n{}", obstacle_data.price as u32);
-        let has_enough_coin = coins.0 >= obstacle_data.price;
-        if *&had_enough_coin.is_none()
-            || (*had_enough_coin).expect("Should not execute if None because of previous condition")
-                != has_enough_coin
-        {
-            *had_enough_coin = Some(has_enough_coin);
-            commands.trigger(EnableButtonEvent {
-                entity,
-                enable: has_enough_coin,
-            });
+        if let Some(mut had_enough_coin) = maybe_had_enough_coin {
+            if had_enough_coin.0 != has_enough_coin {
+                had_enough_coin.0 = has_enough_coin;
+                commands.trigger(EnableButtonEvent {
+                    entity,
+                    enable: has_enough_coin,
+                });
+            }
+        } else {
+            commands
+                .entity(entity)
+                .insert(HadEnoughCoin(has_enough_coin));
+            if !has_enough_coin {
+                commands.trigger(EnableButtonEvent {
+                    entity,
+                    enable: false,
+                });
+            }
         }
     }
 }

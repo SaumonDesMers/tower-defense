@@ -28,6 +28,7 @@ use crate::scenes::battlefield::damage::{Damage, DamagePlugin};
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
+use crate::scenes::battlefield::ui::Shop;
 use crate::scenes::battlefield::wave::WaveSpawnerZone;
 use crate::scenes::{
     AppState,
@@ -136,7 +137,8 @@ fn setup(
     // UI
     commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
 
-    commands.insert_resource(Coins(10000.0));
+    commands.insert_resource(Shop::new());
+    commands.insert_resource(Coins(100.0));
     commands.insert_resource(Selection { entity: None });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(
@@ -150,7 +152,6 @@ fn setup(
         delay: 1.0,
     });
     commands.insert_resource(TowerGlobalData {
-        build_price: 10.0,
         upgrade_price: 10.0,
     });
     commands.insert_resource(ObstacleGlobalData { price: 10.0 });

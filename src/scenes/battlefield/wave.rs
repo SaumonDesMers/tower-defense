@@ -61,7 +61,8 @@ fn start_wave(
         return;
     };
 
-    let enemy_count = wave_data.count * wave_data.count + 10;
+    // let enemy_count = wave_data.count * wave_data.count + 10;
+    let enemy_count = 1;
     let total_time = (enemy_count as f32 + 0.1) * wave_data.delay;
     info!(
         "start wave with {enemy_count} enemies. One each {}s for {total_time}s.",
