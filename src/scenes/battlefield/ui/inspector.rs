@@ -12,6 +12,7 @@ use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::tower::TowerGlobalData;
 use crate::scenes::battlefield::ui::inspector;
+use crate::scenes::battlefield::ui::movable_item::{MovableItem, MovableItemSlot};
 use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
 use crate::scenes::battlefield::upgrade::{Level, UpgradeEvent};
 use crate::ui::EnableButtonEvent;
@@ -67,6 +68,55 @@ pub fn inspector_window() -> impl Bundle {
             (
                 Text::new("Inspector"),
                 TextColor(tailwind::SLATE_200.into()),
+            ),
+            (
+                Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: px(10),
+                    ..default()
+                },
+                children![
+                    (
+                        Node {
+                            width: px(80),
+                            height: px(80),
+                            border_radius: BorderRadius::all(px(10)),
+                            ..default()
+                        },
+                        MovableItemSlot,
+                        BackgroundColor(tailwind::INDIGO_950.into()),
+                        children![(
+                            MovableItem,
+                            Node {
+                                width: px(80),
+                                height: px(80),
+                                border_radius: BorderRadius::all(px(10)),
+                                ..default()
+                            },
+                            BackgroundColor(tailwind::RED_600.into())
+                        )]
+                    ),
+                    (
+                        Node {
+                            width: px(80),
+                            height: px(80),
+                            border_radius: BorderRadius::all(px(10)),
+                            ..default()
+                        },
+                        MovableItemSlot,
+                        BackgroundColor(tailwind::INDIGO_950.into()),
+                    ),
+                    (
+                        Node {
+                            width: px(80),
+                            height: px(80),
+                            border_radius: BorderRadius::all(px(10)),
+                            ..default()
+                        },
+                        MovableItemSlot,
+                        BackgroundColor(tailwind::INDIGO_950.into()),
+                    )
+                ]
             ),
             (
                 Button,

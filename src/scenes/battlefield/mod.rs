@@ -144,7 +144,7 @@ fn setup(
     commands.spawn((DespawnOnExit(AppState::InGame), ui::ui()));
 
     commands.insert_resource(Shop::new());
-    commands.insert_resource(Coins(0.0));
+    commands.insert_resource(Coins(10000.0));
     commands.insert_resource(Selection { entity: None });
     commands.insert_resource(MapValidity { error: None });
     commands.insert_resource(PathfindingMap::new(

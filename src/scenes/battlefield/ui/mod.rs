@@ -1,10 +1,12 @@
-use crate::scenes::battlefield::ui::currencies::{CurrencyDisplayPlugin, currency_display};
-use crate::scenes::battlefield::ui::inspector::{InspectorPlugin, inspector_window};
-use crate::scenes::battlefield::ui::main_menu::{MainMenuButtonPlugin, main_menu_button};
-use crate::scenes::battlefield::ui::next_wave::{NextWaveButtonPlugin, next_wave_button};
-use crate::scenes::battlefield::ui::shop::{ShopPlugin, shop};
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
+
+use currencies::{CurrencyDisplayPlugin, currency_display};
+use inspector::{InspectorPlugin, inspector_window};
+use main_menu::{MainMenuButtonPlugin, main_menu_button};
+use movable_item::MovableItemPlugin;
+use next_wave::{NextWaveButtonPlugin, next_wave_button};
+use shop::{ShopPlugin, shop};
 
 pub use inspector::UpdateInspector;
 pub use shop::{Price, Shop, ShopItem};
@@ -12,6 +14,7 @@ pub use shop::{Price, Shop, ShopItem};
 mod currencies;
 mod inspector;
 mod main_menu;
+mod movable_item;
 mod next_wave;
 mod shop;
 
@@ -25,6 +28,7 @@ impl Plugin for UiPlugin {
             NextWaveButtonPlugin,
             MainMenuButtonPlugin,
             CurrencyDisplayPlugin,
+            MovableItemPlugin,
         ));
     }
 }
