@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-pub mod ricochet;
-
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
@@ -12,9 +10,7 @@ pub struct ProjectilePlugin;
 impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, projectile_move)
-            .add_observer(projectile_apply_dammage)
-            .add_observer(ricochet::on_send_projectile)
-            .add_observer(ricochet::spawn);
+            .add_observer(projectile_apply_dammage);
     }
 }
 

@@ -6,23 +6,43 @@ use crate::{
     scenes::battlefield::{
         enemy::Enemy,
         projectile::{Projectile, ProjectileFiredEvent, ProjectileHitEvent},
+        relics::{AddRelic, RelicTrait, RemoveRelic},
     },
 };
 
+pub struct RicochetPlugin;
+
+impl Plugin for RicochetPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_observer(on_send_projectile).add_observer(spawn);
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct RicochetRelic;
+
+impl RelicTrait for RicochetRelic {
+    fn name(&self) -> &'static str {
+        "Ricochet"
+    }
+
+    fn add(&self, commands: &mut EntityCommands) {
+        commands.insert(SendProjectilWithRicochet);
+    }
+
+    fn remove(&self, commands: &mut EntityCommands) {
+        commands.remove::<SendProjectilWithRicochet>();
+    }
+}
+
 /// Component for tower.
 #[derive(Component, Debug, Clone, Copy)]
-pub struct SendProjectileWithRicochet;
+pub struct SendProjectilWithRicochet;
 
 /// Component for projectile.
 /// It store the child Entity which contains the collider needed to find a target.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Ricochet(Entity);
-
-impl Ricochet {
-    pub fn new() -> Self {
-        Self(Entity::PLACEHOLDER)
-    }
-}
 
 /// When a entity with SendProjectileWithRicochet trigger a ProjectileFiredEvent, add:
 /// - a child to the projectile entity with a Collider.
@@ -32,7 +52,7 @@ impl Ricochet {
 pub fn on_send_projectile(
     event: On<ProjectileFiredEvent>,
     mut commands: Commands,
-    query: Query<(), With<SendProjectileWithRicochet>>,
+    query: Query<(), With<SendProjectilWithRicochet>>,
 ) {
     if let Ok(mut projectile_cmd) = commands.get_entity(event.entity)
         && query.contains(event.source_entity)

@@ -20,7 +20,8 @@ use crate::scenes::battlefield::attack_speed::AttackSpeed;
 use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::damage::Damage;
 use crate::scenes::battlefield::projectile::ProjectileFiredEvent;
-use crate::scenes::battlefield::projectile::ricochet::{Ricochet, SendProjectileWithRicochet};
+use crate::scenes::battlefield::relics::Relics;
+use crate::scenes::battlefield::relics::ricochet::{Ricochet, SendProjectilWithRicochet};
 use crate::scenes::battlefield::ui::{Price, ShopItem};
 use crate::scenes::battlefield::upgrade::Level;
 
@@ -52,11 +53,6 @@ impl ShopItem for Tower {
     }
 }
 
-#[derive(Resource)]
-pub struct TowerGlobalData {
-    pub upgrade_price: f32,
-}
-
 #[derive(Event)]
 pub struct BuyTowerEvent;
 
@@ -79,11 +75,14 @@ pub fn tower(ressources_handler: &RessourcesHandler) -> impl Bundle {
         Damage::new(5.0),
         AttackSpeed::new(1.0),
         AttackRange::new(AttackRangeType::Circle(200.0)),
-        Level {
-            count: 0,
-            price: 10.0,
-            price_mul: 1.5,
-        },
+        (
+            Level {
+                count: 0,
+                price: 10.0,
+                price_mul: 1.5,
+            },
+            Relics::new(2),
+        ),
     )
 }
 

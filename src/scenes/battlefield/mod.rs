@@ -16,6 +16,7 @@ mod obstacle;
 mod pathfinding;
 mod physic;
 mod projectile;
+mod relics;
 mod selection;
 mod spawner;
 mod tower;
@@ -28,6 +29,7 @@ use crate::scenes::battlefield::attack_speed::AttackSpeedPlugin;
 use crate::scenes::battlefield::damage::{Damage, DamagePlugin};
 use crate::scenes::battlefield::health::Health;
 use crate::scenes::battlefield::map_validity::{MapValidity, MapValidityPlugin};
+use crate::scenes::battlefield::relics::RelicsPlugin;
 use crate::scenes::battlefield::selection::{Selectable, Selection};
 use crate::scenes::battlefield::ui::Shop;
 use crate::scenes::battlefield::wave::WaveSpawnerZone;
@@ -38,7 +40,6 @@ use crate::scenes::{
         currency::{Coins, CurrencyPlugin},
         obstacle::ObstaclePlugin,
         pathfinding::PathfindingMap,
-        tower::TowerGlobalData,
         wave::WaveGlobalData,
     },
 };
@@ -80,6 +81,7 @@ impl Plugin for BattleFieldPlugin {
             AttackRangePlugin,
             AttackSpeedPlugin,
             DamagePlugin,
+            RelicsPlugin,
         ))
         .add_systems(OnEnter(AppState::InGame), setup)
         .add_systems(OnExit(AppState::InGame), cleanup)
@@ -157,9 +159,6 @@ fn setup(
         count: 1,
         delay: 1.0,
     });
-    commands.insert_resource(TowerGlobalData {
-        upgrade_price: 10.0,
-    });
     commands.insert_resource(ClickAttackGlobalData {
         damage: Damage::new(1.0),
         mesh: meshes.add(Circle::new(20.0)),
@@ -173,6 +172,5 @@ fn cleanup(mut commands: Commands) {
     commands.remove_resource::<MapValidity>();
     commands.remove_resource::<PathfindingMap>();
     commands.remove_resource::<WaveGlobalData>();
-    commands.remove_resource::<TowerGlobalData>();
     commands.remove_resource::<ClickAttackGlobalData>();
 }

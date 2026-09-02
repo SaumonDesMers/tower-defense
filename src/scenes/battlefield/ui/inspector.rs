@@ -9,10 +9,10 @@ use crate::scenes::battlefield::base::Base;
 use crate::scenes::battlefield::currency::Coins;
 use crate::scenes::battlefield::damage::Damage;
 use crate::scenes::battlefield::health::Health;
+use crate::scenes::battlefield::relics::{AddRelic, Relic, Relics, RemoveRelic};
 use crate::scenes::battlefield::selection::{Selectable, Selection};
-use crate::scenes::battlefield::tower::TowerGlobalData;
 use crate::scenes::battlefield::ui::inspector;
-use crate::scenes::battlefield::ui::movable_item::{MovableItem, MovableItemSlot};
+use crate::scenes::battlefield::ui::movable_item::{DropItemInSlot, MovableItem, MovableItemSlot};
 use crate::scenes::battlefield::ui::next_wave::DisabledDuringWave;
 use crate::scenes::battlefield::upgrade::{Level, UpgradeEvent};
 use crate::ui::EnableButtonEvent;
@@ -39,6 +39,9 @@ pub struct UpdateInspector;
 
 #[derive(Component)]
 struct UpgradeButton;
+
+#[derive(Component)]
+struct RelicSlots;
 
 pub fn inspector_window() -> impl Bundle {
     (
@@ -75,48 +78,7 @@ pub fn inspector_window() -> impl Bundle {
                     column_gap: px(10),
                     ..default()
                 },
-                children![
-                    (
-                        Node {
-                            width: px(80),
-                            height: px(80),
-                            border_radius: BorderRadius::all(px(10)),
-                            ..default()
-                        },
-                        MovableItemSlot,
-                        BackgroundColor(tailwind::INDIGO_950.into()),
-                        children![(
-                            MovableItem,
-                            Node {
-                                width: px(80),
-                                height: px(80),
-                                border_radius: BorderRadius::all(px(10)),
-                                ..default()
-                            },
-                            BackgroundColor(tailwind::RED_600.into())
-                        )]
-                    ),
-                    (
-                        Node {
-                            width: px(80),
-                            height: px(80),
-                            border_radius: BorderRadius::all(px(10)),
-                            ..default()
-                        },
-                        MovableItemSlot,
-                        BackgroundColor(tailwind::INDIGO_950.into()),
-                    ),
-                    (
-                        Node {
-                            width: px(80),
-                            height: px(80),
-                            border_radius: BorderRadius::all(px(10)),
-                            ..default()
-                        },
-                        MovableItemSlot,
-                        BackgroundColor(tailwind::INDIGO_950.into()),
-                    )
-                ]
+                RelicSlots,
             ),
             (
                 Button,
@@ -146,8 +108,10 @@ pub fn inspector_window() -> impl Bundle {
 
 fn update_inspector(
     _: On<UpdateInspector>,
+    mut commands: Commands,
     mut inspector: Query<(&mut Visibility, &Children), With<Inspector>>,
     mut upgrade_button: Single<&mut Node, With<UpgradeButton>>,
+    relic_slots: Single<Entity, With<RelicSlots>>,
     mut text: Query<&mut Text>,
     selectables: Query<
         (
@@ -157,11 +121,13 @@ fn update_inspector(
             Option<&AttackSpeed>,
             Option<&Damage>,
             Option<&AttackRange>,
+            Option<&Relics>,
         ),
         With<Selectable>,
     >,
     selection: Res<Selection>,
 ) {
+    info!("update inspector");
     let (mut visibility, children) = inspector.single_mut().expect("Inpector should exist");
 
     let Some(selected) = selection.entity else {
@@ -178,7 +144,7 @@ fn update_inspector(
         )
         .expect("Inpector text should exist");
 
-    let (name, level, health, attack_speed, damage, range) = selectables
+    let (name, level, health, attack_speed, damage, range, relics) = selectables
         .get(selected)
         .expect("Selected entity should exist");
 
@@ -206,6 +172,61 @@ fn update_inspector(
             AttackRangeType::Circle(radius) => format!("\nRange radius: {}", radius.ceil()),
         });
     }
+
+    commands
+        .entity(*relic_slots)
+        .despawn_children()
+        .with_children(|slots| {
+            let Some(relics) = relics else {
+                return;
+            };
+            for relic in (0..relics.slot_count).map(|index| relics.list.get(index)) {
+                slots
+                    .spawn((
+                        Node {
+                            width: px(80),
+                            height: px(80),
+                            border_radius: BorderRadius::all(px(10)),
+                            ..default()
+                        },
+                        MovableItemSlot,
+                        observe(
+                            |event: On<DropItemInSlot>,
+                             mut commands: Commands,
+                             relics: Query<&Relic>,
+                             selection: Res<Selection>| {
+                                if let Ok(relic) = relics.get(event.dropped) {
+                                    commands.trigger(AddRelic {
+                                        relic: relic.clone(),
+                                        target: selection.entity.unwrap(),
+                                    });
+                                }
+                            },
+                        ),
+                        BackgroundColor(tailwind::INDIGO_950.into()),
+                    ))
+                    .with_children(|slot| {
+                        if let Some(relic) = relic {
+                            slot.spawn((
+                                MovableItem,
+                                Node {
+                                    width: px(80),
+                                    height: px(80),
+                                    border_radius: BorderRadius::all(px(10)),
+                                    ..default()
+                                },
+                                BackgroundColor(tailwind::RED_600.into()),
+                                relic.clone(),
+                                children![(
+                                    Text::new(relic.0.name()),
+                                    TextColor(tailwind::SLATE_200.into()),
+                                    Pickable::IGNORE,
+                                )],
+                            ));
+                        }
+                    });
+            }
+        });
 }
 
 #[derive(Component)]

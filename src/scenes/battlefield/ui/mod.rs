@@ -7,6 +7,7 @@ use main_menu::{MainMenuButtonPlugin, main_menu_button};
 use movable_item::MovableItemPlugin;
 use next_wave::{NextWaveButtonPlugin, next_wave_button};
 use shop::{ShopPlugin, shop};
+use storage::storage;
 
 pub use inspector::UpdateInspector;
 pub use shop::{Price, Shop, ShopItem};
@@ -17,6 +18,7 @@ mod main_menu;
 mod movable_item;
 mod next_wave;
 mod shop;
+mod storage;
 
 pub struct UiPlugin;
 
@@ -69,7 +71,31 @@ pub fn ui() -> impl Bundle {
                 },
                 Pickable::IGNORE,
                 children![
-                    shop(),
+                    (
+                        Node {
+                            width: px(400),
+                            height: percent(100),
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Column,
+                            // justify_content: JustifyContent::SpaceAround,
+                            ..default()
+                        },
+                        Pickable::IGNORE,
+                        children![
+                            (
+                                // Shop
+                                Node {
+                                    width: percent(100),
+                                    height: percent(100),
+                                    display: Display::Flex,
+                                    ..default()
+                                },
+                                Pickable::IGNORE,
+                                children![shop()]
+                            ),
+                            storage()
+                        ],
+                    ),
                     (
                         // Powers bar
                         Node {

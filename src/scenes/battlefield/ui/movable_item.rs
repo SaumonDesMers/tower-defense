@@ -22,6 +22,12 @@ pub struct MovableItem;
 #[derive(Component)]
 struct MovableItemLastParent(Entity);
 
+#[derive(EntityEvent)]
+pub struct DropItemInSlot {
+    pub entity: Entity,
+    pub dropped: Entity,
+}
+
 fn on_pick(
     pick: On<Pointer<DragStart>>,
     mut commands: Commands,
@@ -65,6 +71,10 @@ fn on_drop(
 
     if slot.contains(drop.entity) {
         commands.entity(drop.entity).add_child(drop.dropped);
+        commands.trigger(DropItemInSlot {
+            entity: drop.entity,
+            dropped: drop.dropped,
+        });
     } else {
         commands.entity(last_parent.0).add_child(drop.dropped);
     }

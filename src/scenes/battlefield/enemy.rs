@@ -52,8 +52,8 @@ fn enemy_reached_target_system(
             if collisions.contains(enemy_entity, target_entity) {
                 health.take_damage(Damage::new(1.0));
                 commands.entity(enemy_entity).despawn();
+                commands.trigger(UpdateInspector);
             }
         }
     }
-    commands.trigger(UpdateInspector);
 }
